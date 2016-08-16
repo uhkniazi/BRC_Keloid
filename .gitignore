@@ -4,6 +4,10 @@
 
 # Session Data files
 .RData
+*.CEL.gz
+*.soft
+*.gz
+*.tar
 
 # Example code in package build process
 *-Ex.R
@@ -33,3 +37,9 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 .Rproj.user
+
+# Directories to ignore
+Temp/
+Objects/
+Results/
+
