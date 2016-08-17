@@ -98,6 +98,11 @@ library(hgu133plus2.db)
 setwd('GSE7890')
 
 ###################################### grouping
+# # select samples where cortisone treatment is +
+# i = which(x.affy$fCortisone == '+hydrocortisone')
+# # remove or keep the samples?
+# x.affy = x.affy[,-i]
+dim(x.affy)
 mDat = exprs(x.affy)
 # sample annotation
 dfSamples = pData(x.affy)
@@ -105,10 +110,12 @@ dfSamples = pData(x.affy)
 # sanity check
 identical(rownames(dfSamples), colnames(mDat))
 
-## create grouping factors by days
+## create grouping factors
 fCortisone = dfSamples$fCortisone
 fDisorder = dfSamples$fDisorder
-fSamples = dfSamples$fDisorder
+fSamples = as.character(dfSamples$fDisorder)
+fSamples[fSamples != 'keloid'] = 'normal'
+fSamples = factor(fSamples)
 #fSamples = factor(paste(dfSamples$fCortisone, dfSamples$fDisorder, sep='.'))
 table(fSamples)
 levels(fSamples)
@@ -122,7 +129,7 @@ table(is.na(cvSym))
 # remove unannotated genes
 mDat = mDat[!is.na(cvSym),]
 
-design = model.matrix(~fDisorder + fCortisone)
+design = model.matrix(~fSamples+fCortisone)
 colnames(design) = levels(fSamples)
 head(design)
 
@@ -167,7 +174,7 @@ n = (which(sapply(lSigGenes.adj, length) >= 10)) + 1
 
 for (i in seq_along(n)) {
   dfGenes = topTable(fit, coef = n[i], number = Inf)
-  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-2, 2), p.adj.cut = 0.01)
+  f_plotVolcano(dfGenes, paste(names(n[i])), fc.lim = c(-4, 4), p.adj.cut = 0.01)
 }
 
 ### grouping
@@ -266,7 +273,7 @@ for (i in seq_along(n)) {
   dfGenes = topTable(fit, coef = n[i], number = Inf)
   dfGenes.2 = dfGenes[lSigGenes.adj[[names(n[i])]],]
   rownames(dfGenes.2) = NULL
-  f = paste('Temp/', 'Significant_genes_at_1pcFDR_Combined', names(n[i]), '.csv', sep='')
+  f = paste('Temp/', 'Significant_genes_at_1pcFDR_Combined', names(n[i]), '.xls', sep='')
   dfGenes.2 = dfGenes.2[,c(2, 3, 4, 5, 6, 8, 9)]
   write.csv(dfGenes.2, file=f)
 }
@@ -353,12 +360,12 @@ vcount(getFinalGraph(oGr))
 ig = getFinalGraph(oGr)
 par(mar=c(1,1,1,1)+0.1)
 set.seed(1)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 40)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = T, iSize = 10)
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, mark.groups=NULL, edge.color='lightgrey')
 set.seed(1)
 ig = getFinalGraph(oGr)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 20)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 10)
 plot(getCommunity(oGr), ig, vertex.label=NA, layout=layout_with_fr, 
      vertex.frame.color=NA, edge.color='darkgrey')
 
@@ -383,7 +390,7 @@ if (length(i) > 0) {
 set.seed(1)
 ig = plot.centrality.graph(oGr)
 # plot the genes or vertex sizes by fold change
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 30)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 10)
 set.seed(1)
 plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='darkgrey')
 par(p.old)
@@ -462,7 +469,7 @@ par(mar=c(1,1,1,1)+0.1)
 for(i in 1:length(lev)){
   ig = induced_subgraph(getFinalGraph(oGr), vids = as.character(dfTopGenes.cent$VertexID))
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=10)
   n = V(ig)$name
   lab = f_dfGetGeneAnnotation(n)
   V(ig)$label = as.character(lab$SYMBOL)
@@ -491,7 +498,7 @@ par(mar=c(1,1,1,1)+0.1)
 for(i in 1:length(lev)){
   ig = induced_subgraph(getFinalGraph(oGr), vids = unlist(getLargestCliques(oGr)))
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=10)
   n = V(ig)$name
   lab = f_dfGetGeneAnnotation(n)
   V(ig)$label = as.character(lab$SYMBOL)
@@ -524,7 +531,7 @@ m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
 
 csClust = rownames(m)
 length(csClust)
-pdf('Temp/cluster_variance_duke.pdf')
+pdf('Temp/cluster_variance.pdf')
 par(mfrow=c(1,2))
 boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
 for (i in seq_along(csClust)){
@@ -565,7 +572,7 @@ for(i in 1:length(lev)){
   #   com.lar = which.max(com$csize)
   #   ig = induced_subgraph(ig, vids = V(ig)[which(com$membership == com.lar)])
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=50)
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=10)
   n = V(ig)$name
   lab = f_dfGetGeneAnnotation(n)
   V(ig)$label = as.character(lab$SYMBOL)
@@ -575,3 +582,81 @@ for(i in 1:length(lev)){
   legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
 }
 
+df = f_dfGetGeneAnnotation(as.character(dfCluster$gene))
+dfCluster = cbind(dfCluster[as.character(df$ENTREZID),], SYMBOL=df$SYMBOL, GENENAME=df$GENENAME)
+write.csv(dfCluster, file='Temp/ClustersToGeneMapping.xls')
+
+# save the graph and data objects
+keloid_data = list(graph=oGr, matrix=mCounts, groups=fGroups)
+save(keloid_data, file='Objects/keloid_data.rds')
+
+# saving graph object to visualize in cytoscape or other graph viewers
+lev = levels(fGroups)[-1]
+m = mCounts
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=30)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  nm = paste('Results/keloid_data', lev[i], 'vs', levels(fGroups)[1], '.graphml', sep='')
+  write.graph(ig, file = nm, format = 'graphml')
+}
+
+
+#######################################################################################
+### selection of plots for various clusters
+#######################################################################################
+
+
+# Various plots for one cluster of choice
+csClust = '194315'
+
+lev = levels(fGroups)[-1]
+m = mCounts
+#m = apply(m, 2, function(x) f_ivStabilizeData(x, fGroups))
+#rownames(m) = rownames(mCounts)
+par(mar=c(1,1,1,1)+0.1)
+for(i in 1:length(lev)){
+  ig = getClusterSubgraph(oGr, csClust)
+  fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=60)
+  n = V(ig)$name
+  lab = f_dfGetGeneAnnotation(n)
+  V(ig)$label = as.character(lab$SYMBOL)
+  set.seed(1)
+  plot(ig, vertex.label.cex=0.7, layout=layout_with_fr, vertex.frame.color='darkgrey', edge.color='lightgrey',
+       main=paste(lev[i], 'vs', levels(fGroups)[1]))
+  legend('topright', legend = c('Underexpressed', 'Overexpressed'), fill = c('lightblue', 'pink'))
+}
+
+# heatmap of the genes
+ig.sub = getClusterSubgraph(oGr, csClustLabel = csClust)
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+mC = t(mCounts)
+mC = mC[n$ENTREZID,]
+rownames(mC) = n$SYMBOL
+mC = t(scale(t(mC)))
+# threshhold the values
+mC[mC < -3] = -3
+mC[mC > +3] = +3
+# draw the heatmap
+hc = hclust(dist(mC))
+aheatmap(mC, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = hc, annRow=NA, 
+         annColors=NA, Colv=NA)
+
+
+# if we want to plot variance of one gene at a time
+n = f_dfGetGeneAnnotation(V(ig.sub)$name)
+mC = t(mCounts)
+mC = mC[n$ENTREZID,]
+rownames(mC) = n$SYMBOL
+rn = rownames(mC)
+length(rn)
+
+for (i in seq_along(rn)){
+  temp = t(as.matrix(mC[rn[i],]))
+  rownames(temp) = rn[i]
+  plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
+}
