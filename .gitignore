@@ -42,4 +42,5 @@ vignettes/*.pdf
 Temp/
 Objects/
 Results/
+Data_external/
 
