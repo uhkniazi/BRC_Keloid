@@ -611,7 +611,7 @@ for(i in 1:length(lev)){
 
 
 # Various plots for one cluster of choice
-csClust = '194315'
+csClust = '556833'
 
 lev = levels(fGroups)[-1]
 m = mCounts
@@ -660,3 +660,35 @@ for (i in seq_along(rn)){
   rownames(temp) = rn[i]
   plot.cluster.variance(oGr, temp, fGroups, log=FALSE);
 }
+
+## some enrichment using string db package
+library(STRINGdb)
+# find database id for human
+temp = get_STRING_species(version = '10')
+temp[grep('homo', temp$official_name, ignore.case = T, perl=TRUE),]
+
+dbString = STRINGdb$new(version='10', species=9606, input_directory='')
+string.mapped = dbString$map(dfGenes.2, 'ENTREZID', removeUnmappedRows = T)
+
+string.mapped = string.mapped[order(string.mapped$adj.P.Val),]
+par(p.old)
+hits = string.mapped$STRING_id[1:200]
+dbString$plot_network(hits)
+pdf('Temp/string.pdf')
+dbString$plot_network(hits)
+dev.off(dev.cur())
+
+# plot enrichment
+dbString$plot_ppi_enrichment(string.mapped$STRING_id, quiet = T)
+
+# category for which to compute the enrichment (i.e. "Process", "Component",
+# "Function", "KEGG", "Pfam", "InterPro"). The default category is "Process".
+enrichmentProcess = dbString$get_enrichment(string.mapped$STRING_id, category = 'Process', iea=F)
+
+## find interactions for patricular proteins
+head(string.mapped)
+id = which(string.mapped$ENTREZID == '27242')
+string.mapped[id,]
+# dbString$get_interactions(string.mapped$STRING_id[id])
+ig = dbString$get_graph()
+# this graph can be used to do some analysis
