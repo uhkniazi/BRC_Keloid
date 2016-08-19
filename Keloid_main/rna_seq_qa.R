@@ -4,7 +4,7 @@
 # Date: 18/08/2016
 
 
-## source the quality check file
+## set variables and source libraries
 gcswd = getwd()
 setwd('Keloid_main/')
 library(downloader)
@@ -36,9 +36,71 @@ dbDisconnect(db)
 # remove any whitespace from the names
 dfSample$title = gsub(" ", "", dfSample$title, fixed = T)
 
-#### get the names of the fastq files
+#### get the names of the fastq files for first sequencing run
 setwd('Data_external/keloid1')
 csFiles = list.files('.', pattern = '*.gz')
+
+# remove the index files from the list
+i = grep('_I', csFiles)
+head(csFiles[i])
+i2 = file.size(csFiles[i])
+head(i2)/1e6
+summary(i2/1e6)
+
+csFiles = csFiles[-i]
+
+# remove undetermined
+i = grep('Undetermined', csFiles)
+head(csFiles[i])
+i2 = file.size(csFiles[i])
+head(i2)/1e6
+summary(i2/1e6)
+csFiles = csFiles[-i]
+
+# split samples by lane
+fLane = strsplit(csFiles, '_')
+fLane = sapply(fLane, function(x) x[3])
+
+# split by samples
+fSamples = strsplit(csFiles, '_')
+fSamples = sapply(fSamples, function(x) x[1])
+
+table(fLane, fSamples)
+
+# add sample names and file location
+f = fSamples %in% dfSample$title
+table(f)
+
+i = match(fSamples, dfSample$title)
+dfFiles = data.frame(fSamples, title=dfSample$title[i], files=csFiles, fLane)
+
+## perform the analysis one sample at a time
+lLanes = split(csFiles, fSamples)
+names(lLanes) = unique(fSamples)
+sapply(lLanes, length)
+
+## function to write the qa files
+write.qa = function(fls, indir, outdir, title){
+  wd = getwd()
+  setwd(indir)
+  coll <- QACollate(QAFastqSource(fls), QAReadQuality(),
+                    QAAdapterContamination(), QANucleotideUse(),
+                    QAQualityUse(), QASequenceUse(),
+                    QAFrequentSequence(n=10), QANucleotideByCycle(),
+                    QAQualityByCycle())
+  x <- qa2(coll,  verbose=F)
+  setwd(outdir)
+  res <- report(x, dest = title)
+  setwd(wd)
+  cat(paste('done', title))
+}
+
+n = names(lLanes)
+temp = sapply(n, function(x) {
+  write.qa(lLanes[[x]], indir=getwd(), outdir='~/Data/R/BRC_Keloid/Keloid_main/Results/', title=x)
+})
+
+
 
 # path to fastq file
 csPath = file.choose()
@@ -52,15 +114,6 @@ plot.recurrentreads(ob)
 l = lBlastRecurrentSequences(ob, n=2, timeout=100000)
 
 
-fls <- dir(path = '../temp/RNASeq/20151110/FASTQ/', pattern = "*fastq.gz", full=TRUE)
 
-coll <- QACollate(QAFastqSource(fls), QAReadQuality(),
-                  QAAdapterContamination(), QANucleotideUse(),
-                  QAQualityUse(), QASequenceUse(),
-                  QAFrequentSequence(n=10), QANucleotideByCycle(),
-                  QAQualityByCycle())
-x <- qa2(coll,  verbose=TRUE)
-
-res <- report(x, dest = 'Temp')
 if (interactive())
   browseURL(res)
