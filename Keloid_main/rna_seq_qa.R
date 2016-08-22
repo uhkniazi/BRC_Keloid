@@ -37,7 +37,7 @@ dbDisconnect(db)
 dfSample$title = gsub(" ", "", dfSample$title, fixed = T)
 
 #### get the names of the fastq files for first sequencing run
-setwd('Data_external/keloid1')
+setwd('Data_external/keloid2')
 csFiles = list.files('.', pattern = '*.gz')
 
 # remove the index files from the list
@@ -58,12 +58,15 @@ summary(i2/1e6)
 csFiles = csFiles[-i]
 
 # split samples by lane
-fLane = strsplit(csFiles, '_')
-fLane = sapply(fLane, function(x) x[3])
+# fLane = strsplit(csFiles, '_')
+# fLane = sapply(fLane, function(x) x[3])
+fLane = gsub('.+(L\\d+)_.+', '\\1', csFiles, perl=T)
 
 # split by samples
-fSamples = strsplit(csFiles, '_')
-fSamples = sapply(fSamples, function(x) x[1])
+# fSamples = strsplit(csFiles, '_')
+# fSamples = sapply(fSamples, function(x) x[1])
+fSamples = gsub('^([A-Z]+\\d+)_(1st|2nd)_.+', '\\1-\\2', csFiles, perl=T)
+fSamples = gsub('^([A-Z]+\\d+)_.+', '\\1', fSamples, perl=T)
 
 table(fLane, fSamples)
 
@@ -101,19 +104,30 @@ temp = sapply(n, function(x) {
 })
 
 
+# write the file information to the database
+db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', host='127.0.0.1')
+dbListTables(db)
+dbListFields(db, 'Sample')
+## not the preferred way of calling skip this
+# another way to get the query, preferred
+dfSample = dbGetQuery(db, "select id, title from Sample where idData=2;")
+# remove any whitespace from the names
+dfSample$title = gsub(" ", "", dfSample$title, fixed = T)
+dbGetQuery(db, paste('describe File;'))
 
-# path to fastq file
-csPath = file.choose()
+# create insert query for each sample
+n = names(lLanes)
+temp = sapply(n, function(x) {
+  # get sample id
+  idSample = dbGetQuery(db, paste('select id from Sample where title like "%', x, '%" AND idData=2;', sep=''))
+  idSample = cbind(idSample, lLanes[[x]])
+  idSample = cbind(idSample, 'fastq')
+  i = match(idSample[,2], dfFiles$files)
+  idSample$lane = dfFiles$fLane[i]
+  colnames(idSample) = c('idSample', 'name', 'type', 'group1')
+  ## create a sql query
+  dbWriteTable(db, name='File', value=idSample, append=T, row.names=F)
+})
 
-ob = CFastqQuality(csPath, sample.name = 'SRR850132_2.fastq')
-
-plot.alphabetcycle(ob)
-plot.qualitycycle(ob)
-plot.recurrentreads(ob)
-
-l = lBlastRecurrentSequences(ob, n=2, timeout=100000)
-
-
-
-if (interactive())
-  browseURL(res)
+# close connection after getting data
+dbDisconnect(db)
