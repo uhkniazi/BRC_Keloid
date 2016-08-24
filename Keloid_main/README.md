@@ -8,7 +8,8 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
 300 fastq files processed for quality checks. All seems fine, some trimming on the 3' side will be required on the first library.  
 
 ## Scripts
-1. download_data.R
-  * Downloads the data in raw format from geo database.  
-2. de_analysis.R  
-  * Does a DE analysis and clustering for the data.  
+1. rna_seq_qa.R
+  * Process a batch of FASTQ files and produces html output reports. Adds results to Project.File table.  
+2. rna_seq_qa_2.R 
+  * Similar to previous script but creates one large object with all ~ 260 FASTQ files from the first experiment, and creates one pdf document with read quality plots. **NOTE** memory and time intensive.
+  
