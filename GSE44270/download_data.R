@@ -140,7 +140,6 @@ pr.out = prcomp(t(m), scale=T)
 ## choose appropriate factor
 fSamples = x.affy$fDisorder
 fSamples = x.affy$fCell.type
-fSamples = paste
 
 col.p = rainbow(length(unique(fSamples)))
 col = col.p[as.numeric(fSamples)]
