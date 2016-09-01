@@ -60,7 +60,7 @@ temp = sapply(cvQueries, function(x){
   out.r1.up = paste0(cvOutput.unpaired, 'up_', lf[[1]])
   out.r2.up = paste0(cvOutput.unpaired, 'up_', lf[[2]])
   p1 = paste('java -jar', cvTrimmomatic, 'PE -phred33', in.r1, in.r2, out.r1, out.r1.up, out.r2, out.r2.up, sep=' ')
-  p2 = paste0('ILLUMINACLIP:', cvIlluminaAdap, ':2:30:10:8:true LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36')
+  p2 = paste0('ILLUMINACLIP:', cvIlluminaAdap, ':2:30:10:8:true') # removed this part of command LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36')
   com = paste(p1, p2, sep=' ')
   writeLines(paste('#### trimmomatic input', dfFiles$title[1], '\n'), oFile)
   writeLines(com, oFile)
