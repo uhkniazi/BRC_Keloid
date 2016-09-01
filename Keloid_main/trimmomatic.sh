@@ -5,11 +5,11 @@
 
 #!/bin/bash
 #$ -S /bin/sh
-#$ -pe smp 1 
+#$ -pe smp 2
 #$ -cwd
 #$ -N trim-test
 #$ -j y
-#$ -l mem_free=8G
+#$ -l mem_free=19G
 #$ -l h_rt=02:00:00
 # check if empty commandline
 if [ "$#" -ne 2 ]
