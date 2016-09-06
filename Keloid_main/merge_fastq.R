@@ -26,7 +26,7 @@ cvQueries = paste0('select File.*, Sample.title from File, Sample
            where (Sample.idData = 2 and Sample.id =', dfQuery$id, ') and (File.idSample = Sample.id)')
 
 #### get the names of the fastq files for S021 or S014 sequencing run
-setwd('Data_external/keloid2')
+setwd('Data_external/keloid3')
 csFiles = list.files('.', pattern = '*.gz')
 
 temp = sapply(cvQueries, function(x){
@@ -35,6 +35,8 @@ temp = sapply(cvQueries, function(x){
   # remove white space from title
   dfFiles$title = gsub(" ", "", dfFiles$title, fixed=T)
   f = csFiles[csFiles %in% dfFiles$name]
+  # check if f is empty, i.e. no matching files
+  if (length(f) == 0) return();
   # split the file names into paired end 1 and 2, identified by R1 and R2 in the file name
   d = grepl('_R1_', f)
   d = as.character(d)
@@ -45,7 +47,7 @@ temp = sapply(cvQueries, function(x){
   sapply(names(lf), function(x2){
     # collapse from string vector to character string
     f2 = paste(lf[[x2]], collapse = ' ')
-    f.out = paste0(unique(dfFiles$title), '_S014_', x2, '_', '.fastq.gz')
+    f.out = paste0(unique(dfFiles$title), '_S032_', x2, '_', '.fastq.gz')
     com = paste('cat', f2, '>>' , f.out)
     cat(com, '\n')
     system(com, intern = F, ignore.stdout = F)
@@ -62,6 +64,8 @@ temp = lapply(cvQueries, function(x){
   # remove white space from title
   dfFiles$title = gsub(" ", "", dfFiles$title, fixed=T)
   f = csFiles[csFiles %in% dfFiles$name]
+  # check if f is empty, i.e. no matching files
+  if (length(f) == 0) return();
   # split the file names into paired end 1 and 2, identified by R1 and R2 in the file name
   d = grepl('_R1_', f)
   d = as.character(d)
@@ -70,9 +74,9 @@ temp = lapply(cvQueries, function(x){
   lf = split(f, d)
   # merge the files from each direction
   name = sapply(names(lf), function(x2){
-    f.out = paste0(unique(dfFiles$title), '_S014_', x2, '_', '.fastq.gz')
+    f.out = paste0(unique(dfFiles$title), '_S032_', x2, '_', '.fastq.gz')
   })
-  df = data.frame(idSample=unique(dfFiles$idSample), name, type='fastq', group1='S014')
+  df = data.frame(idSample=unique(dfFiles$idSample), name, type='fastq', group1='S032')
   return(df)
 })
 
