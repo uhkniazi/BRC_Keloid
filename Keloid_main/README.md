@@ -14,5 +14,10 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
   * Similar to previous script but creates one large object with all ~ 260 FASTQ files from the first experiment, and creates one pdf document with read quality plots. **NOTE** memory and time intensive.  
 3. merge_fastq.R
   * Merge a batch of FASTQ files according to sample ids and paired end direction.  
+4. write_trimmomatic_script.R
+  * Writes a script file in the AutoScripts folder that can be used on the HPC to run trimmomatic on the fastq files. **NOTE** create the correct directories for input and output in the folder where the script will be executed.  
+5. write_trimmomatic_array_job.R
+  * similar to previous script but creates an array job script and a parameter file in the AutoScripts folder.  
+  
 
 
