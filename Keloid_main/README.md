@@ -18,6 +18,8 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
   * Writes a script file in the AutoScripts folder that can be used on the HPC to run trimmomatic on the fastq files. **NOTE** create the correct directories for input and output in the folder where the script will be executed.  
 5. write_trimmomatic_array_job.R
   * similar to previous script but creates an array job script and a parameter file in the AutoScripts folder.  
+6. rna_seq_qa_3.R  
+  * Similar to previous scripts 1 and 2, however uses the updated version of CFastqQuality class. Saves the object information in the Projects.MetaFile table in the database and the object in the appropriate folder. Outputs the relevant scripts. **NOTE** memory and time intensive.  
   
-
+  
 
