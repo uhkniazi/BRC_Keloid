@@ -31,7 +31,7 @@ dbDisconnect(db)
 dfSample$title = gsub(" ", "", dfSample$title, fixed = T)
 
 #### get the names of the fastq files for first sequencing run
-setwd('Data_external/Trimmed/S032/')
+setwd('Data_external/Trimmed/S014/')
 csFiles = list.files('.', pattern = '*.gz')
 
 # match the files to samples by title
@@ -65,9 +65,9 @@ lOb = lapply(ivFilesIndex, function(x){
 })
 
 setwd(gcswd)
-n = make.names(paste('CFastqQuality trimmed S032 rds'))
+n = make.names(paste('CFastqQuality trimmed S014 rds'))
 lOb$meta = dfSample
-lOb$desc = paste('CFastqQuality object from S032 sequencing run', date())
+lOb$desc = paste('CFastqQuality object from S014 sequencing run', date())
 n2 = paste0('~/Data/MetaData/', n)
 save(lOb, file=n2)
 
@@ -75,7 +75,7 @@ library('RMySQL')
 db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', host='127.0.0.1')
 dbListTables(db)
 dbListFields(db, 'MetaFile')
-df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/', comment='Sequencing run S032 FASTQ file quality data after trimming')
+df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/', comment='Sequencing run S014 FASTQ file quality data after trimming')
 dbWriteTable(db, name = 'MetaFile', value=df, append=T, row.names=F)
 dbDisconnect(db)
 
@@ -83,12 +83,12 @@ dbDisconnect(db)
 getwd()
 lOb$desc = NULL
 lOb$meta = NULL
-pdf(file='Keloid_main/Results/qa.trimmed.S032.pdf')
+pdf(file='Keloid_main/Results/qa.trimmed.S014.pdf')
 
 iReadCount = sapply(lOb, CFastqQuality.getReadCount)
 iReadCount = iReadCount/1e+6
 
-barplot(iReadCount, las=2, main='Sequencing run S032 - Read Count', ylab = 'No. of Reads in Millions', cex.names =0.8, col=grey.colors(2))
+barplot(iReadCount, las=2, main='Sequencing run S014 - Read Count', ylab = 'No. of Reads in Millions', cex.names =0.6, col=grey.colors(2))
 
 mQuality = sapply(lOb, function(x){
   m = mGetReadQualityByCycle(x)
@@ -96,10 +96,26 @@ mQuality = sapply(lOb, function(x){
   return(m)
 })
 
-matplot(mQuality, type='l', main='Sequencing run S032 - Per base quality', ylab = 'Mean Score', xlab='Position in Read')
+matplot(mQuality, type='l', main='Sequencing run S014 - Per base quality', ylab = 'Mean Score', xlab='Position in Read')
 
 lReadWidth = lapply(lOb, iGetReadWidth)
-boxplot(lReadWidth, las=2, main='Sequencing run S032 - Read Width', ylab = 'Read Width', cex.names =0.8, col=grey.colors(2))
-
+boxplot(lReadWidth, las=2, main='Sequencing run S014 - Read Width', ylab = 'Read Width', col=grey.colors(2), outline=F, xaxt='n')
+axis(1, at=1:length(lReadWidth), labels = names(lReadWidth), cex.axis=0.7, las=2)
 dev.off(dev.cur())
+
+## some samples may have quality drops which can be seen by clustering
+hc = hclust(dist(t(mQuality)))
+plot(hc, main='Clustering of S014 based on Per base quality', cex=0.6, xlab='', sub='')
+abline(h = 6, col=2)
+
+c = cutree(hc, h=6)
+table(c)
+m = mQuality[,c == 3]
+matplot(m, type='l', main='Sequencing run S014 - Per base quality Outliers', ylab = 'Mean Score', xlab='Position in Read', col=1:ncol(m))
+legend('bottomleft', legend = c(colnames(m)), fill = 1:ncol(m))
+
+n = colnames(m)
+
+
+
 
