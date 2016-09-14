@@ -97,7 +97,7 @@ writeLines('\n\n', oFile)
 ## write array job lines
 writeLines("# Parse parameter file to get variables.
 number=$SGE_TASK_ID
-paramfile=hisat2_S032_param.txt
+paramfile=samtools_S032_param.txt
  
 ins1=`sed -n ${number}p $paramfile | awk '{print $1}'`
 bamfile=`sed -n ${number}p $paramfile | awk '{print $2}'`
