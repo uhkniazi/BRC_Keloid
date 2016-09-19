@@ -42,25 +42,31 @@ csFiles = list.files('.', pattern = '*.bam', recursive = T)
 # check if these files match the file names in database
 table(dfSample$fp %in% csFiles)
 
-csFiles = dfSample$fp
+## order the data frame by sample
+dfSample = dfSample[order(dfSample$title),]
+# split the files by titles to reduce memory usage
+lFiles = split(dfSample$fp, dfSample$title)
 
-## create a bamfiles list object
-oBamFiles = BamFileList(csFiles)
+# for each of these bam file lists do the counting
+lCounts = lapply(lFiles, function(bfl){
+  ## create a bamfiles list object
+  oBamFiles = BamFileList(bfl, index=paste0(bfl, '.bai'))
+  return(assays(summarizeOverlaps(oGRLgenes, oBamFiles, ignore.strand = F, singleEnd=F))$counts)
+})
 
-oSummExp = summarizeOverlaps(oGRLgenes, oBamFiles, ignore.strand = F, singleEnd=F)
 
 ## save the summarized experiment object
 setwd(gcswd)
-n = make.names(paste('oSummarized experiment counts object for keloids rds'))
+n = make.names(paste('lCounts object for keloids q10 rdup rds'))
 n2 = paste0('~/Data/MetaData/', n)
-save(oSummExp, file=n2)
+save(lCounts, file=n2)
 
 library('RMySQL')
 db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', host='127.0.0.1')
 dbListTables(db)
 dbListFields(db, 'MetaFile')
 df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/', 
-                comment='oSummarized experiment counts object for keloids S014 S021 and S032 sequencing runs with quality 10 duplicates removed')
+                comment='list of Count matrix object for keloids S014 S021 and S032 sequencing runs with quality 10 duplicates removed')
 dbWriteTable(db, name = 'MetaFile', value=df, append=T, row.names=F)
 dbDisconnect(db)
 
