@@ -19,7 +19,16 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
 5. write_trimmomatic_array_job.R
   * similar to previous script but creates an array job script and a parameter file in the AutoScripts folder.  
 6. rna_seq_qa_3.R  
-  * Similar to previous scripts 1 and 2, however uses the updated version of CFastqQuality class. Saves the object information in the Projects.MetaFile table in the database and the object in the appropriate folder. Outputs the relevant scripts. **NOTE** memory and time intensive.  
+  * Similar to previous scripts 1 and 2, however uses the updated version of CFastqQuality class. Saves the object information in the Projects.MetaFile table in the database and the object in the appropriate folder. Outputs the relevant figures. **NOTE** memory and time intensive.  
+7. write_hisat2_array_job.R  
+  * array job for hpc to perform alignment using hisat2.  
+8. write_samtools_array_job.R  
+  * array job for cleaning up sam file after alignment and producing bam file.  
+9. bam_files_qa.R  
+  * uses the CBamScaffold class to look at the 22 chromosomes of each bam file (depending on the sequencing run) and produces summary plots for the alignment coverage quality.  
+10. counts_from_bams.R  
+  * uses all the bam files to and Txdb object to count over laps over the genome and save the results.  
+
   
   
 
