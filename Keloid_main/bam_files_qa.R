@@ -140,7 +140,7 @@ barplot(iReadCount, las=2, main='Sequencing run S014 - Read Count', ylab = 'No. 
 
 # average binned coverage distribution
 f1 = function(ob){
-  mat = sapply(ob, getCoverageGammaParam)
+  mat = sapply(ob, getCoverageGammaParam)['shape']
   n = sapply(ob, CBamScaffold.getSeqname)
   names(mat) = n
   return(mat)
