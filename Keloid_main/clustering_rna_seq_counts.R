@@ -365,6 +365,10 @@ densityplot(~ ivMean, data=dfData, groups=time, auto.key=TRUE, main='Average Gen
 dotplot(ivMean ~ subject.id | time, data=dfData, groups=condition, auto.key=TRUE, main='Average Gene Expression in Each Sample, Normalised',
         xlab='Mean Gene Expression', pch=20, cex.axis=0.7)
 
+xyplot(ivMean ~ time | condition, data=dfData, groups=subject.id, auto.key=FALSE, main='Average Gene Expression in Each Subject, Normalised',
+       xlab='Time points', pch=20, cex.axis=0.7, type='o', ylab='Mean Gene Expression')
+
+
 f = paste(dfData$condition, dfData$time)
 densityplot(~ ivMean, data=dfData, groups=f, auto.key=TRUE, main='Average Gene Expression Density in Each Batch, Normalised',
             xlab='Mean Gene Expression', from=18, to=32)
