@@ -28,6 +28,9 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
   * uses the CBamScaffold class to look at the 22 chromosomes of each bam file (depending on the sequencing run) and produces summary plots for the alignment coverage quality.  
 10. counts_from_bams.R  
   * uses all the bam files to and Txdb object to count over laps over the genome and save the results.  
+11. clustering_rna_seq_counts.R  
+  * loads the sample information (covariates etc) and counts matrix from the database. Produces PCA plots for the count matrix, coloured by covariate of choice, using various transformations of the data e.g. scaling, log, rlog, normalised. Plots the average gene expression density distribution. Merges the technical replicates, normalises and repeats the plots.  
+  
 
   
   
