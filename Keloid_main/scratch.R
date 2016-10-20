@@ -103,7 +103,7 @@ sf = estimateSizeFactorsForMatrix(mCounts.merge)
 mCounts.norm = sweep(mCounts.merge, 2, sf, '/')
 
 ## perform DE analysis
-x = round(mCounts.norm[1,], 0)
+x = round(mCounts.norm[2,], 0)
 
 library(car)
 library(MASS)
@@ -147,7 +147,7 @@ library(lme4)
 
 #fm01 = glmer.nb(resp ~ 1 + condition + time + (1 | patient), data=dfData)
 fm04 = glmer.nb(resp ~ 0 + cond.time + (1 | patient), data=dfData)
-
+summary(glht(fm04, fm01.cont))
 #th = fitdistr((dfData$resp), 'negative binomial')
 #fm04 = glmer(resp ~ 1 + cond.time + (1 | patient), data = dfData, family=negative.binomial(2, link=log))
 summary(fm04)
