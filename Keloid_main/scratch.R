@@ -365,3 +365,7 @@ densityplot(~ ivMean, data=dfData, groups=f, auto.key=TRUE, main='Average Gene E
 # })
 
 glmer.nb(mDat[79,] ~ 0 + cond.time + (1 | patient), control=glmerControl(optCtrl=list(maxfun=10000)))
+
+install.packages("R2admb")
+install.packages("glmmADMB",repos="http://glmmadmb.r-forge.r-project.org/repos")
+sqrt(sum(c(as.numeric(resid(fm01)), as.numeric(fm01$U[[1]]))^2)/n)

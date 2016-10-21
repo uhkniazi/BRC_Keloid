@@ -145,7 +145,8 @@ rm(list=ls()[grepl('^df', ls(), ignore.case = T)])
 
 ########## DE Analysis using glmer
 library(multcomp)
-library(lme4)
+#library(lme4)
+library(glmmADMB)
 
 ## use the data matrix  a matrix of data
 mDat = round(exprs(oExp),0)
@@ -153,22 +154,26 @@ str(mDat)
 
 # remove low expression features
 i = rowMeans(mDat)
-i = which(i > 2)
+i = which(i > 3)
 mDat = mDat[i,]
 str(mDat)
 
 # fit glm to each feature
 index = 1:nrow(mDat)
-patient = oExp$fTitle
-cond.time = oExp$fCondition.t
 
 # check clock time
 ptm = proc.time()
 
 modelFunction = function(dat){
   df = data.frame(resp=mDat[dat,], cond.time=oExp$fCondition.t, patient=oExp$fTitle)
-  return(tryCatch(glmer.nb(resp ~ 0 + cond.time + (1 | patient), data=df), warning=function(w) NULL, error=function(e) NULL))
+  return(tryCatch(glmmADMB::glmmadmb(resp ~ 0 + cond.time + (1 | patient), data=df, family = 'nbinom', link='log'), error=function(e) NULL))
 }
+
+# modelFunction = function(dat){
+#   df = data.frame(resp=mDat[dat,], cond.time=oExp$fCondition.t, patient=oExp$fTitle)
+#   #return(tryCatch(glmer.nb(resp ~ 0 + cond.time + (1 | patient), data=df), warning=function(w) NULL, error=function(e) NULL))
+#   return(tryCatch(glmer.nb(resp ~ 0 + cond.time + (1 | patient), data=df), error=function(e) NULL))
+# }
 
 # lGlm = lapply(index, function(dat){
 #   return(glmer.nb(mDat[dat,] ~ 0 + cond.time + (1 | patient)))
@@ -180,16 +185,43 @@ names(lGlm) = rownames(mDat)
 
 ptm.end = proc.time()
 
+# # total time took
+# > ptm.end - ptm
+# user   system  elapsed 
+# 6426.412  440.156 6758.919 ~ 2 hours
+
+## save this object in the database for future use
+## NOTE: don't run this segment of code again as object is already saved
+## commenting for safety
+# n = make.names(paste('list of glmer nb objects for keloids q10 rdup rds'))
+# n2 = paste0('~/Data/MetaData/', n)
+# save(lGlm, file=n2)
+# 
+# library('RMySQL')
+# db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', host='127.0.0.1')
+# dbListTables(db)
+# dbListFields(db, 'MetaFile')
+# df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/',
+#                 comment='Normalised Expression set object with comparison factor list for keloids S014 S021 and S032 sequencing runs with quality 10 duplicates removed')
+# dbWriteTable(db, name = 'MetaFile', value=df, append=T, row.names=F)
+# dbDisconnect(db)
+
+# remove the elements of list that are empty
+lGlm.sub = lGlm[!sapply(lGlm, is.null)]
+
 # extract a contrast at a time
 mContrasts = rbind('Control:2 vs Control:1' = c(-1, 1, 0, 0),
                    'Keloid:1 vs Control:1' = c(-1, 0, 1, 0),
                    'Keloid:2 vs Control:1' = c(-1, 0, 0, 1),
-                   'Keloid:2 vs Keloid:1' = c(0, 0, -1, 1))
+                   'Keloid:2 vs Keloid:1' = c(0, 0, -1, 1),
+                   'Control:2 vs Keloid:2' = c(0, 1, 0, -1))
 
 
 ## perform contrasts tests
+index = 1:length(lGlm.sub)
+
 lContrast1 = lapply(index, function(dat){
-  s = summary(glht(lGlm[[dat]], t(mContrasts[1,])))
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[1,])))
   ret = c(s$test$coefficients[1], s$test$pvalues[1])
   names(ret) = c('logfc', 'p.value')
   return(ret)
@@ -197,11 +229,11 @@ lContrast1 = lapply(index, function(dat){
 
 dfContrast1 = data.frame(do.call(rbind, lContrast1))
 dfContrast1$p.adj = p.adjust(dfContrast1$p.value, method = 'BH')
-rownames(dfContrast1) = names(lGlm)
+rownames(dfContrast1) = names(lGlm.sub)
 
 # second contrast
 lContrast2 = mclapply(index, function(dat){
-  s = summary(glht(lGlm[[dat]], t(mContrasts[2,])))
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[2,])))
   ret = c(s$test$coefficients[1], s$test$pvalues[1])
   names(ret) = c('logfc', 'p.value')
   return(ret)
@@ -209,11 +241,11 @@ lContrast2 = mclapply(index, function(dat){
 
 dfContrast2 = data.frame(do.call(rbind, lContrast2))
 dfContrast2$p.adj = p.adjust(dfContrast2$p.value, method = 'BH')
-rownames(dfContrast2) = names(lGlm)
+rownames(dfContrast2) = names(lGlm.sub)
 
 # third contrast
 lContrast3 = mclapply(index, function(dat){
-  s = summary(glht(lGlm[[dat]], t(mContrasts[3,])))
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[3,])))
   ret = c(s$test$coefficients[1], s$test$pvalues[1])
   names(ret) = c('logfc', 'p.value')
   return(ret)
@@ -221,11 +253,11 @@ lContrast3 = mclapply(index, function(dat){
 
 dfContrast3 = data.frame(do.call(rbind, lContrast3))
 dfContrast3$p.adj = p.adjust(dfContrast3$p.value, method = 'BH')
-rownames(dfContrast3) = names(lGlm)
+rownames(dfContrast3) = names(lGlm.sub)
 
 # fourth contrast
 lContrast4 = mclapply(index, function(dat){
-  s = summary(glht(lGlm[[dat]], t(mContrasts[4,])))
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[4,])))
   ret = c(s$test$coefficients[1], s$test$pvalues[1])
   names(ret) = c('logfc', 'p.value')
   return(ret)
@@ -233,6 +265,16 @@ lContrast4 = mclapply(index, function(dat){
 
 dfContrast4 = data.frame(do.call(rbind, lContrast4))
 dfContrast4$p.adj = p.adjust(dfContrast4$p.value, method = 'BH')
-rownames(dfContrast4) = names(lGlm)
+rownames(dfContrast4) = names(lGlm.sub)
 
+# fifth contrast
+lContrast5 = mclapply(index, function(dat){
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[5,])))
+  ret = c(s$test$coefficients[1], s$test$pvalues[1])
+  names(ret) = c('logfc', 'p.value')
+  return(ret)
+})
 
+dfContrast5 = data.frame(do.call(rbind, lContrast5))
+dfContrast5$p.adj = p.adjust(dfContrast5$p.value, method = 'BH')
+rownames(dfContrast5) = names(lGlm.sub)
