@@ -212,9 +212,9 @@ lGlm.sub = lGlm[!sapply(lGlm, is.null)]
 # extract a contrast at a time
 mContrasts = rbind('Control:2 vs Control:1' = c(-1, 1, 0, 0),
                    'Keloid:1 vs Control:1' = c(-1, 0, 1, 0),
-                   'Keloid:2 vs Control:1' = c(-1, 0, 0, 1),
+                   #'Keloid:2 vs Control:1' = c(-1, 0, 0, 1),
                    'Keloid:2 vs Keloid:1' = c(0, 0, -1, 1),
-                   'Control:2 vs Keloid:2' = c(0, 1, 0, -1))
+                   'Keloid:2 vs Control:2' = c(0, -1, 0, 1))
 
 
 ## perform contrasts tests
@@ -267,14 +267,71 @@ dfContrast4 = data.frame(do.call(rbind, lContrast4))
 dfContrast4$p.adj = p.adjust(dfContrast4$p.value, method = 'BH')
 rownames(dfContrast4) = names(lGlm.sub)
 
-# fifth contrast
-lContrast5 = mclapply(index, function(dat){
-  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[5,])))
-  ret = c(s$test$coefficients[1], s$test$pvalues[1])
-  names(ret) = c('logfc', 'p.value')
-  return(ret)
-})
+# # fifth contrast
+# lContrast5 = mclapply(index, function(dat){
+#   s = summary(glht(lGlm.sub[[dat]], t(mContrasts[5,])))
+#   ret = c(s$test$coefficients[1], s$test$pvalues[1])
+#   names(ret) = c('logfc', 'p.value')
+#   return(ret)
+# })
+# 
+# dfContrast5 = data.frame(do.call(rbind, lContrast5))
+# dfContrast5$p.adj = p.adjust(dfContrast5$p.value, method = 'BH')
+# rownames(dfContrast5) = names(lGlm.sub)
 
-dfContrast5 = data.frame(do.call(rbind, lContrast5))
-dfContrast5$p.adj = p.adjust(dfContrast5$p.value, method = 'BH')
-rownames(dfContrast5) = names(lGlm.sub)
+## assign annotation to genes
+library(org.Hs.eg.db)
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast1)), c('SYMBOL'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast1$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast2)), c('SYMBOL'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast2$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast3)), c('SYMBOL'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast3$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast4)), c('SYMBOL'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast4$SYMBOL = df$SYMBOL
+
+## estimate dispersions
+
+par(mfrow=c(2,2))
+calculateDispersion = function(fm){
+  n = length(resid(fm))
+  sqrt(sum(c(as.numeric(resid(fm)), as.numeric(fm$U[[1]]))^2)/n)
+}
+
+iDispersion = sapply(lGlm.sub, calculateDispersion)
+
+plotDispersion = function(dis, dat, p.cut, title){
+  col = rep('grey', length.out=(nrow(dat)))
+  col[dat$p.adj < p.cut] = 'red'
+  plot(dis, dat$logfc, col=col, pch=20, main=title, xlab='Dispersion', ylab='logFC')
+}
+
+plotDispersion(iDispersion, dfContrast1, 0.01, 'Control:2 vs Control:1')
+plotDispersion(iDispersion, dfContrast2, 0.1, 'Keloid:1 vs Control:1')
+plotDispersion(iDispersion, dfContrast3, 0.01, 'Keloid:2 vs Keloid:1')
+plotDispersion(iDispersion, dfContrast4, 0.1, 'Keloid:2 vs Control:2')
+
+iMean = rowMeans(mDat[names(lGlm.sub),])
+
+plotMeanFC = function(m, dat, p.cut, title){
+  col = rep('grey', length.out=(nrow(dat)))
+  col[dat$p.adj < p.cut] = 'red'
+  #mh = cut(m, breaks=quantile(m, 0:50/50), include.lowest = T)
+  plot(m, dat$logfc, col=col, pch=20, main=title, xlab='log Mean', ylab='logFC')
+}
+
+par(mfrow=c(2,2))
+plotMeanFC(log(iMean), dfContrast1, 0.01, 'Control:2 vs Control:1')
+plotMeanFC(log(iMean), dfContrast2, 0.1, 'Keloid:1 vs Control:1')
+plotMeanFC(log(iMean), dfContrast3, 0.01, 'Keloid:2 vs Keloid:1')
+plotMeanFC(log(iMean), dfContrast4, 0.1, 'Keloid:2 vs Control:2')
+
+

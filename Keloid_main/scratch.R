@@ -369,3 +369,25 @@ glmer.nb(mDat[79,] ~ 0 + cond.time + (1 | patient), control=glmerControl(optCtrl
 install.packages("R2admb")
 install.packages("glmmADMB",repos="http://glmmadmb.r-forge.r-project.org/repos")
 sqrt(sum(c(as.numeric(resid(fm01)), as.numeric(fm01$U[[1]]))^2)/n)
+
+
+f_plotVolcano = function(dfGenes, main, p.adj.cut = 0.1, fc.lim = c(-3, 3)){
+  p.val = -1 * log10(dfGenes$p.value)
+  fc = dfGenes$logfc
+  # cutoff for p.value y.axis
+  y.cut = -1 * log10(0.01)
+  col = rep('lightgrey', times=length(p.val))
+  c = which(dfGenes$p.adj < p.adj.cut)
+  col[c] = 'red'
+  plot(fc, p.val, pch=20, xlab='Fold Change', ylab='-log10 P.Value', col=col, main=main, xlim=fc.lim)
+  abline(v = 0, col='grey', lty=2)
+  abline(h = y.cut, col='red', lty=2)
+  # second cutoff for adjusted p-values
+  y.cut = quantile(p.val[c], probs=0.85)
+  abline(h = y.cut, col='red')
+  # identify these genes
+  g = which(p.val > y.cut)
+  lab = dfGenes[g, 'SYMBOL']
+  text(dfGenes$logfc[g], y = p.val[g], labels = lab, pos=2, cex=0.6)
+}
+
