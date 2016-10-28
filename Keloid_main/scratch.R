@@ -391,3 +391,51 @@ f_plotVolcano = function(dfGenes, main, p.adj.cut = 0.1, fc.lim = c(-3, 3)){
   text(dfGenes$logfc[g], y = p.val[g], labels = lab, pos=2, cex=0.6)
 }
 
+
+lf = function(x){
+  est = fitdistr(x, 'negative binomial')$estimate
+  l = dnbinom(x, size=est['size'], mu=est['mu'], log = T)
+  l = l - dnbinom(round(est['mu'], 0), size=est['size'], mu=est['mu'], log = T)
+  return(exp(l))
+}
+
+lf2 = function(x){
+  est = c('size'= mean(x)^2/(var(x)-mean(x)), 'mu' = mean(x))
+  l = dnbinom(x, size=est['size'], mu=est['mu'], log=T)
+  l = l - dnbinom(round(est['mu'], 0), size=est['size'], mu=est['mu'], log = T)
+  return(exp(l))
+}
+
+## sensitivity check
+iSensitivtyCheck = function(x, iCut=0.09){
+  iRet = NULL;
+  # get likelihood values
+  while(TRUE){
+    iLik = lf2(x)
+    iSmall = which(iLik < 0.09)
+    if (length(iSmall) == 0) break;
+    # get the smallest index 
+    iSmall = which.min(iLik)
+    # drop that index
+    iRet = c(iRet, iSmall)
+    x = x[-iSmall]
+  }
+  return(iRet)
+}
+
+
+## posterior check
+nbPosterior = function(x, prior=c(0, 1/2)){
+  # calculate r i.e. alpha or size and p
+  est = c('size'= mean(x)^2/(var(x)-mean(x)), 'mu' = mean(x))
+  est = c(est, est['size']/(est['size']+est['mu']))
+  names(est)[3] = 'prob'
+  # If the likelihood function for an observation x is negative binomial(r, p) and
+  # p is distributed a priori as Beta(a, b) then the posterior distribution for p is
+  # Beta(a + r, b + x). Note that this is the same as having observed r successes
+  # and x failures with a binomial(r + x, p) likelihood. All that matters from a
+  # Bayesian perspective is that r successes were observed and x failures.
+  post = rbeta(1000, est['size']+prior[1], est['mu']+prior[2])
+}
+
+
