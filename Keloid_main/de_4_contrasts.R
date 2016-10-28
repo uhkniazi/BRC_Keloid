@@ -267,17 +267,6 @@ dfContrast4 = data.frame(do.call(rbind, lContrast4))
 dfContrast4$p.adj = p.adjust(dfContrast4$p.value, method = 'BH')
 rownames(dfContrast4) = names(lGlm.sub)
 
-# # fifth contrast
-# lContrast5 = mclapply(index, function(dat){
-#   s = summary(glht(lGlm.sub[[dat]], t(mContrasts[5,])))
-#   ret = c(s$test$coefficients[1], s$test$pvalues[1])
-#   names(ret) = c('logfc', 'p.value')
-#   return(ret)
-# })
-# 
-# dfContrast5 = data.frame(do.call(rbind, lContrast5))
-# dfContrast5$p.adj = p.adjust(dfContrast5$p.value, method = 'BH')
-# rownames(dfContrast5) = names(lGlm.sub)
 
 ## assign annotation to genes
 library(org.Hs.eg.db)
@@ -441,6 +430,23 @@ lGlm.rep = lapply(cvRepeat, modelFunction2)
 names(lGlm.rep) = cvRepeat
 
 ptm.end = proc.time()
+
+## save this object in the database for future use
+## NOTE: don't run this segment of code again as object is already saved
+## commenting for safety
+# n = make.names(paste('list of glmer nb objects for keloids q10 rdup using glmmADMB after doing sensitivity analysis rds'))
+# n2 = paste0('~/Data/MetaData/', n)
+# save(lGlm.rep, file=n2)
+# 
+# library('RMySQL')
+# db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', host='127.0.0.1')
+# dbListTables(db)
+# dbListFields(db, 'MetaFile')
+# df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/',
+#                 comment='list of glmer negative binomial objects for keloids q10 rdup using glmmADMB - resp ~ 0 + cond.time + (1 | patient) for keloids S014 S021 and S032 sequencing runs with quality 10 duplicates removed, repeated after doing sensitivity analysis')
+# dbWriteTable(db, name = 'MetaFile', value=df, append=T, row.names=F)
+# dbDisconnect(db)
+
 
 ## remove any null elements
 table(sapply(lGlm.rep, is.null))
