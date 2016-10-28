@@ -425,7 +425,7 @@ iSensitivtyCheck = function(x, iCut=0.09){
 
 
 ## posterior check
-nbPosterior = function(x, prior=c(0, 1/2)){
+nbPosterior = function(x, prior=c(1/2, 1/2)){
   # calculate r i.e. alpha or size and p
   est = c('size'= mean(x)^2/(var(x)-mean(x)), 'mu' = mean(x))
   est = c(est, est['size']/(est['size']+est['mu']))
@@ -438,4 +438,33 @@ nbPosterior = function(x, prior=c(0, 1/2)){
   post = rbeta(1000, est['size']+prior[1], est['mu']+prior[2])
 }
 
+mSensitivityCheck = function(x){
+  # create matrix to hold data
+  mRet = matrix(NA, nrow=1000, ncol=length(x)+1)
+  ## get posterior for full data
+  mRet[,1] = nbPosterior(x)
+  ## repeat with drop one observation
+  for (i in 1:length(x)){
+    mRet[,i+1] = nbPosterior(x[-i])
+  }
+  return(mRet)
+}
+
+mSensitivityCheckPvalues = function(x){
+  m = mSensitivityCheck(x)
+  p.adjust(apply(m[,-1], 2, function(x) ks.test(m[,1], x)$p.value),method = 'bonf')
+}
+
+
+
+lContrast1 = lapply(cvRepeat[1:4], function(dat){
+  s = summary(glht(lGlm.sub[[dat]], t(mContrasts[1,])))
+  ret = c(s$test$coefficients[1], s$test$pvalues[1])
+  names(ret) = c('logfc', 'p.value')
+  return(ret)
+})
+
+dfContrast1 = data.frame(do.call(rbind, lContrast1))
+dfContrast1$p.adj = p.adjust(dfContrast1$p.value, method = 'BH')
+rownames(dfContrast1) = names(lGlm.sub)
 

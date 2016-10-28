@@ -349,6 +349,264 @@ mCommonGenes[,4] = cvCommonGenes %in% rownames(dfContrast4.sub)
 rownames(mCommonGenes) = cvCommonGenes
 colnames(mCommonGenes) = gsub(' ', '', rownames(mContrasts))
 
+## there appears to be a lot of genes coming up as significant
+## perform a sensitivity analysis to see if certain samples are causing this problem
+mCounts = mDat[cvCommonGenes,]
+dim(mCounts)
+str(mCounts)
+
+## functions to perform sensitivity analysis
+## posterior check
+nbPosterior = function(x, prior=c(1/2, 1/2)){
+  # calculate r i.e. alpha or size and p
+  est = c('size'= abs(mean(x)^2/(var(x)-mean(x))), 'mu' = mean(x))
+  est = c(est, est['size']/(est['size']+est['mu']))
+  names(est)[3] = 'prob'
+  # If the likelihood function for an observation x is negative binomial(r, p) and
+  # p is distributed a priori as Beta(a, b) then the posterior distribution for p is
+  # Beta(a + r, b + x). Note that this is the same as having observed r successes
+  # and x failures with a binomial(r + x, p) likelihood. All that matters from a
+  # Bayesian perspective is that r successes were observed and x failures.
+  post = rbeta(1000, est['size']+prior[1], est['mu']+prior[2])
+}
+
+mSensitivityCheck = function(x){
+  # create matrix to hold data
+  mRet = matrix(NA, nrow=1000, ncol=length(x)+1)
+  ## get posterior for full data
+  mRet[,1] = nbPosterior(x)
+  ## repeat with drop one observation
+  for (i in 1:length(x)){
+    mRet[,i+1] = nbPosterior(x[-i])
+  }
+  return(mRet)
+}
+
+mSensitivityCheckPvalues = function(x){
+  m = mSensitivityCheck(x)
+  #p.adjust(apply(m[,-1], 2, function(x) ks.test(m[,1], x)$p.value),method = 'bonf')
+  apply(m[,-1], 2, function(x) ks.test(m[,1], x)$p.value)
+}
+
+lSenPvalues = lapply(seq_along(1:nrow(mCounts)), function(x){
+  return(tryCatch(mSensitivityCheckPvalues(mCounts[x,]), error=function(e) NULL))
+})
+
+table(sapply(lSenPvalues, is.null))
+
+mSenPvalues = do.call(rbind, lSenPvalues)
+dim(mSenPvalues)
+colnames(mSenPvalues) = colnames(mCounts)
+rownames(mSenPvalues) = rownames(mCounts)
+str(mSenPvalues)
+
+## check the average to see if there is a pattern
+cm = colMeans(mSenPvalues)
+barplot(cm, las=2)
+boxplot(mSenPvalues, las=2, ylab='p values distribution', main='bayesian sensitivity analysis for samples')
+plot(cm, type='l', las=2, xlab='Samples', ylab='P values')
+
+## is there a correlation between size factor and this
+sf = oExp$LibrarySizeFactor
+plot(logit(sf), logit(cm), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
+fm = lm(logit(cm) ~ logit(sf))
+summary(fm)
+iDrop = which.max(hatvalues(fm))
+summary(update(fm, logit(sf[-iDrop]) ~ logit(cm[-iDrop])))
+plot(logit(sf[-iDrop]), logit(cm[-iDrop]), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
+
+cor.test(sf[-iDrop], cm[-iDrop])
+
+##### repeat the analysis for the specific genes after sensitivity analysis
+mSenPvalues = t(apply(mSenPvalues, 1, p.adjust, 'bonf'))
+fRepeat = apply(mSenPvalues, 1, function(x) any(x < 0.05))
+table(fRepeat)
+cvRepeat = rownames(mCounts[fRepeat,])
+table(names(lGlm.sub) %in% cvRepeat)
+
+# fit glm to these genes
+ptm = proc.time()
+
+modelFunction2 = function(dat){
+  df = data.frame(resp=mDat[dat,], cond.time=oExp$fCondition.t, patient=oExp$fTitle, pvalues=mSenPvalues[dat,])
+  # drop the observations with low p-values
+  i = which(df$pvalues < 0.05)
+  df = df[-i,]
+  df = droplevels.data.frame(df)
+  return(tryCatch(glmmADMB::glmmadmb(resp ~ 0 + cond.time + (1 | patient), data=df, family = 'nbinom', link='log'), error=function(e) NULL))
+}
+
+lGlm.rep = lapply(cvRepeat, modelFunction2)
+
+names(lGlm.rep) = cvRepeat
+
+ptm.end = proc.time()
+
+## remove any null elements
+table(sapply(lGlm.rep, is.null))
+f = sapply(lGlm.rep, is.null)
+lGlm.rep[f] = NULL
+
+i = match(names(lGlm.rep), names(lGlm.sub))
+head(names(lGlm.sub[i]),3)
+head(names(lGlm.rep), 3)
+lGlm.sub[i] = lGlm.rep
+
+##################################################################
+### repeat the contrasts 
+# extract a contrast at a time
+mContrasts = rbind('Control:2 vs Control:1' = c(-1, 1, 0, 0),
+                   'Keloid:1 vs Control:1' = c(-1, 0, 1, 0),
+                   #'Keloid:2 vs Control:1' = c(-1, 0, 0, 1),
+                   'Keloid:2 vs Keloid:1' = c(0, 0, -1, 1),
+                   'Keloid:2 vs Control:2' = c(0, -1, 0, 1))
+
+
+## perform contrasts tests
+index = 1:length(lGlm.sub)
+
+lContrast1 = lapply(index, function(dat){
+  tryCatch({
+    s = summary(glht(lGlm.sub[[dat]], t(mContrasts[1,])))
+    ret = c(s$test$coefficients[1], s$test$pvalues[1])
+    names(ret) = c('logfc', 'p.value')
+    return(ret)
+  }, error=function(e) {
+    ret = c('logfc'=NA, 'p.value'=NA)
+    return(ret)
+  })
+})
+
+dfContrast1 = data.frame(do.call(rbind, lContrast1))
+dfContrast1$p.adj = p.adjust(dfContrast1$p.value, method = 'BH')
+rownames(dfContrast1) = names(lGlm.sub)
+
+# second contrast
+lContrast2 = mclapply(index, function(dat){
+  tryCatch({
+    s = summary(glht(lGlm.sub[[dat]], t(mContrasts[2,])))
+    ret = c(s$test$coefficients[1], s$test$pvalues[1])
+    names(ret) = c('logfc', 'p.value')
+    return(ret)
+  }, error=function(e) {
+    ret = c('logfc'=NA, 'p.value'=NA)
+    return(ret)
+  })
+})
+
+dfContrast2 = data.frame(do.call(rbind, lContrast2))
+dfContrast2$p.adj = p.adjust(dfContrast2$p.value, method = 'BH')
+rownames(dfContrast2) = names(lGlm.sub)
+
+# third contrast
+lContrast3 = mclapply(index, function(dat){
+  tryCatch({
+    s = summary(glht(lGlm.sub[[dat]], t(mContrasts[3,])))
+    ret = c(s$test$coefficients[1], s$test$pvalues[1])
+    names(ret) = c('logfc', 'p.value')
+    return(ret)
+  }, error=function(e) {
+    ret = c('logfc'=NA, 'p.value'=NA)
+    return(ret)
+  })
+})
+
+dfContrast3 = data.frame(do.call(rbind, lContrast3))
+dfContrast3$p.adj = p.adjust(dfContrast3$p.value, method = 'BH')
+rownames(dfContrast3) = names(lGlm.sub)
+
+# fourth contrast
+lContrast4 = mclapply(index, function(dat){
+  tryCatch({
+    s = summary(glht(lGlm.sub[[dat]], t(mContrasts[4,])))
+    ret = c(s$test$coefficients[1], s$test$pvalues[1])
+    names(ret) = c('logfc', 'p.value')
+    return(ret)
+  }, error=function(e) {
+    ret = c('logfc'=NA, 'p.value'=NA)
+    return(ret)
+  })
+})
+
+dfContrast4 = data.frame(do.call(rbind, lContrast4))
+dfContrast4$p.adj = p.adjust(dfContrast4$p.value, method = 'BH')
+rownames(dfContrast4) = names(lGlm.sub)
+
+## assign annotation to genes
+library(org.Hs.eg.db)
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast1)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast1$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast2)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast2$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast3)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast3$SYMBOL = df$SYMBOL
+
+df = select(org.Hs.eg.db, as.character(rownames(dfContrast4)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
+table(duplicated(df$ENTREZID))
+dfContrast4$SYMBOL = df$SYMBOL
+
+## estimate dispersions and some quality plots
+par(mfrow=c(2,2))
+calculateDispersion = function(fm){
+  n = length(resid(fm))
+  sqrt(sum(c(as.numeric(resid(fm)), as.numeric(fm$U[[1]]))^2)/n)
+}
+
+iDispersion = sapply(lGlm.sub, calculateDispersion)
+
+plotDispersion = function(dis, dat, p.cut, title){
+  col = rep('grey', length.out=(nrow(dat)))
+  col[dat$p.adj < p.cut] = 'red'
+  plot(dis, dat$logfc, col=col, pch=20, main=title, xlab='Dispersion', ylab='logFC')
+}
+
+plotDispersion(iDispersion, dfContrast1, 0.01, 'Control:2 vs Control:1')
+plotDispersion(iDispersion, dfContrast2, 0.1, 'Keloid:1 vs Control:1')
+plotDispersion(iDispersion, dfContrast3, 0.01, 'Keloid:2 vs Keloid:1')
+plotDispersion(iDispersion, dfContrast4, 0.1, 'Keloid:2 vs Control:2')
+
+iMean = rowMeans(mDat[names(lGlm.sub),])
+
+plotMeanFC = function(m, dat, p.cut, title){
+  col = rep('grey', length.out=(nrow(dat)))
+  col[dat$p.adj < p.cut] = 'red'
+  #mh = cut(m, breaks=quantile(m, 0:50/50), include.lowest = T)
+  plot(m, dat$logfc, col=col, pch=20, main=title, xlab='log Mean', ylab='logFC')
+}
+
+par(mfrow=c(2,2))
+plotMeanFC(log(iMean), dfContrast1, 0.01, 'Control:2 vs Control:1')
+plotMeanFC(log(iMean), dfContrast2, 0.1, 'Keloid:1 vs Control:1')
+plotMeanFC(log(iMean), dfContrast3, 0.01, 'Keloid:2 vs Keloid:1')
+plotMeanFC(log(iMean), dfContrast4, 0.1, 'Keloid:2 vs Control:2')
+
+
+### grouping of genes
+dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01,])
+dfContrast2.sub = na.omit(dfContrast2[dfContrast2$p.adj < 0.1,])
+dfContrast3.sub = na.omit(dfContrast3[dfContrast3$p.adj < 0.01,])
+dfContrast4.sub = na.omit(dfContrast4[dfContrast4$p.adj < 0.1,])
+
+cvCommonGenes = unique(c(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub)))
+mCommonGenes = matrix(NA, nrow=length(cvCommonGenes), ncol=4)
+mCommonGenes[,1] = cvCommonGenes %in% rownames(dfContrast1.sub)
+mCommonGenes[,2] = cvCommonGenes %in% rownames(dfContrast2.sub)
+mCommonGenes[,3] = cvCommonGenes %in% rownames(dfContrast3.sub)
+mCommonGenes[,4] = cvCommonGenes %in% rownames(dfContrast4.sub)
+rownames(mCommonGenes) = cvCommonGenes
+colnames(mCommonGenes) = gsub(' ', '', rownames(mContrasts))
+
+
+############
+
+
+
 #### analysis by grouping genes
 # create groups in the data based on 4^2-1 combinations
 mCommonGenes.grp = mCommonGenes
