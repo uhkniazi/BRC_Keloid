@@ -734,7 +734,7 @@ axis(1, at = seq(-1, 1, by=0.1), las=2)
 
 # create the graph cluster object
 # using absolute correlation vs actual values lead to different clusters
-oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.95, bSuppressPlots = F)
+oGr = CGraphClust(dfGraph, abs(mCor), iCorCut = 0.6, bSuppressPlots = F)
 
 ## general graph structure
 set.seed(1)
@@ -942,3 +942,39 @@ data.frame(sort(table(dfCluster$cluster)))
 csClust = as.character(unique(dfCluster$cluster))
 
 mMarginal = getClusterMarginal(oGr, t(mCounts))
+
+library(lattice)
+dfData = data.frame(t(mMarginal))
+#colnames(dfData) = gsub('X', '', colnames(dfData))
+dfData$groups = fGroups
+dfData$patient = factor(names(fGroups))
+
+xyplot(X195721  ~ groups | patient, data=dfData, type='o')
+
+dfStack = stack(dfData)
+dfStack$groups = dfData$groups
+
+xyplot(values ~ groups | ind, data=dfStack, type='o')
+
+## xyplots with population average
+mMarginal = getClusterMarginal(oGr, t(mCounts))
+mMarginal = apply(mMarginal, 1, function(x) tapply(x, fGroups, mean))
+mMarginal = scale(mMarginal)
+dfData = data.frame(mMarginal)
+cn = colnames(mMarginal)
+# rownames(dfCluster.name) = dfCluster.name$V2
+# cn = c('Cytokine Signaling', 'citric acid cycle', 'adaptive immunity', 'mRNA processing', 'transcription', 'lipid metabolism', 
+#        'protein modification', 'gpcr signalling')
+colnames(dfData) = cn
+#colnames(dfData) = gsub('X', '', colnames(dfData))
+dfData$groups = factor(rownames(dfData))#factor(gsub('Day (\\d+) AM', '\\1', rownames(dfData)))
+
+n = colnames(dfData)[1:20]
+
+sapply(n, function(x) {p =xyplot(dfData[,x] ~ groups , data=dfData, type='o', ylab=x)
+print(p)})
+
+dfStack = stack(dfData)
+dfStack$groups = dfData$groups
+
+xyplot(values ~ groups | ind, data=dfStack, type='o')
