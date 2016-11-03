@@ -551,18 +551,22 @@ library(org.Hs.eg.db)
 df = select(org.Hs.eg.db, as.character(rownames(dfContrast1)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
 table(duplicated(df$ENTREZID))
 dfContrast1$SYMBOL = df$SYMBOL
+dfContrast1$GENENAME = df$GENENAME
 
 df = select(org.Hs.eg.db, as.character(rownames(dfContrast2)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
 table(duplicated(df$ENTREZID))
 dfContrast2$SYMBOL = df$SYMBOL
+dfContrast2$GENENAME = df$GENENAME
 
 df = select(org.Hs.eg.db, as.character(rownames(dfContrast3)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
 table(duplicated(df$ENTREZID))
 dfContrast3$SYMBOL = df$SYMBOL
+dfContrast3$GENENAME = df$GENENAME
 
 df = select(org.Hs.eg.db, as.character(rownames(dfContrast4)), c('SYMBOL', 'GENENAME'), 'ENTREZID')
 table(duplicated(df$ENTREZID))
 dfContrast4$SYMBOL = df$SYMBOL
+dfContrast4$GENENAME = df$GENENAME
 
 ## estimate dispersions and some quality plots
 par(mfrow=c(2,2))
@@ -605,6 +609,11 @@ dfContrast2$Dispersion = iDispersion[rownames(dfContrast2)]
 dfContrast3$Dispersion = iDispersion[rownames(dfContrast3)]
 dfContrast4$Dispersion = iDispersion[rownames(dfContrast4)]
 
+# save the gene lists
+write.csv(dfContrast1, file='Results/Control:2vsControl:1.xls')
+write.csv(dfContrast2, file='Results/Keloid:1vsControl:1.xls')
+write.csv(dfContrast3, file='Results/Keloid:2vsKeloid:1.xls')
+write.csv(dfContrast4, file='Results/Keloid:2vsControl:2.xls')
 
 ### grouping of genes
 dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01 & dfContrast1$Dispersion > 0.4,])
@@ -647,6 +656,106 @@ temp2 = cbind(temp, table(cp))
 rownames(temp2) = NULL
 print(temp2)
 
+## make venn diagrams of comparisons
+library(VennDiagram)
+par(p.old)
+# create a list for overlaps
+lVenn = list(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub))
+names(lVenn) = c('C2vsC1', 'K1vsC1', 'K2vsK1', 'K2vsC2')
+# calculate overlaps
+#lVenn.overlap = calculate.overlap(lVenn)
+venn.diagram(lVenn, filename = 'Results/venn_all_contrasts.tif')
+venn.diagram(lVenn[c(1,3)], filename = 'Results/venn_time_contrasts.tif')
+
+## save the genes in the overlaps of interest
+# genes common between C2vsC1 and K2vsK1
+rn = apply(mCommonGenes, 1, function(x) all(x[c(1, 3)] == c(T, T)))
+rn = names(rn[rn])
+length(rn)
+
+df.rn = select(org.Hs.eg.db, keys = rn, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+dim(df.rn)
+str(df.rn)
+# write csv to look at gene list
+write.csv(df.rn, file=paste('Temp/', 'common.between.c2vsc1.and.k2vsk1', '.xls', sep=''))
+
+# genes unique to C2vsC1 VS K2vsK1
+rn = apply(mCommonGenes, 1, function(x) all(x[c(1, 3)] == c(T, F)))
+rn = names(rn[rn])
+length(rn)
+
+df.rn = select(org.Hs.eg.db, keys = rn, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+dim(df.rn)
+str(df.rn)
+# write csv to look at gene list
+write.csv(df.rn, file=paste('Temp/', 'unique.to.c2vsc1.VS.k2vsk1', '.xls', sep=''))
+
+# genes unique to K2vsK1 VS C2vsC1
+rn = apply(mCommonGenes, 1, function(x) all(x[c(1, 3)] == c(F, T)))
+rn = names(rn[rn])
+length(rn)
+
+df.rn = select(org.Hs.eg.db, keys = rn, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+dim(df.rn)
+str(df.rn)
+# write csv to look at gene list
+write.csv(df.rn, file=paste('Temp/', 'unique.to.k2vsk1.VS.c2vsc1', '.xls', sep=''))
+
+# genes present in other 2 remaining contrasts
+write.csv(dfContrast2.sub, file='Temp/K1vsC1.xls')
+write.csv(dfContrast4.sub, file='Temp/K2vsC2.xls')
+
+## insert this gene list at innate db to see pathways overrepresented
+## import innate db result
+dfCommonAcrossTime = read.csv(file.choose(), header = T, sep='\t', stringsAsFactors = F)
+dfCommonAcrossTime = dfCommonAcrossTime[,-10]
+# sort the pathway table on adjusted p-values
+dfCommonAcrossTime = dfCommonAcrossTime[order(dfCommonAcrossTime$Pathway.p.value),]
+
+## make a barplot
+plot.bar = function(ivBar, title='', ...){
+  p.old = par(mar=c(8,4,2,2)+0.1)
+  l = barplot(ivBar, beside=T, xaxt='n', main=title, ...)
+  axis(side = 1, l[,1], labels=F)
+  text(l[,1], y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]),
+       labels=names(ivBar), srt=45, adj=1, xpd=TRUE, cex=0.6)
+  par(p.old)
+}
+
+i = -1*log10(dfCommonAcrossTime$Pathway.p.value[1:7])
+names(i) = dfCommonAcrossTime$Pathway.Name[1:7]
+# make on of the names shorter
+names(i)[2] = 'Extracellular matrix degradation'
+pdf('Temp/injury_response.pdf')
+plot.bar(i, title='Common Response to Injury', ylab='-log10 PValue')
+dev.off(dev.cur())
+
+## recycling the code above 
+## import innate db result for unique to keloids across time
+dfCommonAcrossTime = read.csv(file.choose(), header = T, sep='\t', stringsAsFactors = F)
+dfCommonAcrossTime = dfCommonAcrossTime[,-10]
+# sort the pathway table on adjusted p-values
+dfCommonAcrossTime = dfCommonAcrossTime[order(dfCommonAcrossTime$Pathway.p.value),]
+
+## make a barplot
+plot.bar = function(ivBar, title='', ...){
+  p.old = par(mar=c(8,4,2,2)+0.1)
+  l = barplot(ivBar, beside=T, xaxt='n', main=title, ...)
+  axis(side = 1, l[,1], labels=F)
+  text(l[,1], y=par()$usr[3]-0.1*(par()$usr[4]-par()$usr[3]),
+       labels=names(ivBar), srt=45, adj=1, xpd=TRUE, cex=0.6)
+  par(p.old)
+}
+
+i = -1*log10(dfCommonAcrossTime$Pathway.p.value[1:7])
+names(i) = dfCommonAcrossTime$Pathway.Name[1:7]
+# make on of the names shorter
+names(i)[7] = 'Molecular Transport'
+pdf('Temp/unique_keloids_injury_response.pdf')
+plot.bar(i, title='Unique in Keloids Response to Injury', ylab='-log10 PValue')
+dev.off(dev.cur())
+
+
 ### make some heatmaps
 ## all overexpressed genes if interested in
 fSamples = oExp$fCondition.t
@@ -670,6 +779,7 @@ source('CGraphClust.R')
 # delete the file after source
 unlink('CGraphClust.R')
 library('NMF')
+m1 = log(m1+0.5)
 # ignore step if stabalization not required
 m1 = t(apply(m1, 1, function(x) f_ivStabilizeData(x, fGroups)))
 colnames(m1) = fGroups
@@ -716,11 +826,11 @@ dfGraph = na.omit(dfGraph)
 
 # get expression data
 mCounts = mDat[unique(dfGenes$ENTREZID),]
-## optional adjusting the data for repeated measurements
-temp = sapply(rownames(mCounts), function(x){
-  return(fitted(lGlm.sub[[x]]))
-})
-mCounts = t(mCounts)
+# ## optional adjusting the data for repeated measurements
+# temp = sapply(rownames(mCounts), function(x){
+#   return(fitted(lGlm.sub[[x]]))
+# })
+# mCounts = t(mCounts)
 
 fGroups = fSamples
 names(fGroups) = oExp$fTitle
@@ -736,8 +846,13 @@ mCounts = mCounts[,n]
 print(paste('Total number of genes with Reactome terms', length(n)))
 levels(fGroups)
 
+# [1] "Total number of genes with Reactome terms 910"
+# > levels(fGroups)
+# [1] "Control:1" "Control:2" "Keloid:1"  "Keloid:2" 
+# > 
+
 # create a correlation matrix to decide cor cutoff
-mCor = cor(log(mCounts))
+mCor = cor(log(mCounts+0.5))
 
 # check distribution 
 hist(mCor, prob=T, main='Correlation of genes', xlab='', family='Arial', breaks=20, xaxt='n')
@@ -773,7 +888,7 @@ rownames(dfCluster) = dfCluster$gene
 # how many genes in each cluster
 iSizes = sort(table(dfCluster$cluster))
 # remove communities smaller than 5 members or choose a size of your liking
-i = which(iSizes <= 10)
+i = which(iSizes <= 5)
 if (length(i) > 0) {
   cVertRem = as.character(dfCluster[dfCluster$cluster %in% names(i),'gene'])
   iVertKeep = which(!(V(getFinalGraph(oGr))$name %in% cVertRem))
@@ -825,12 +940,12 @@ cvSum.2 = as.character(dfTopGenes.cent$VertexID)
 dfTopGenes.cent$Summary = n[cvSum.2]
 ####### Section ends
 
-write.csv(dfTopGenes.cent, file='Temp/Top_Centrality_Genes_duke.csv')
+write.csv(dfTopGenes.cent, file='Temp/Top_Centrality_Genes.xls')
 
 ## if we want to look at the expression profiles of the top genes
 # plot a heatmap of these top genes
 library(NMF)
-m1 = mCounts[,as.character(dfTopGenes.cent$VertexID)]
+m1 = log(mCounts[,as.character(dfTopGenes.cent$VertexID)]+0.5)
 m1 = scale(m1)
 m1 = t(m1)
 # threshhold the values
@@ -841,7 +956,7 @@ rownames(m1) = as.character(dfTopGenes.cent$SYMBOL)
 aheatmap(m1, color=c('blue', 'black', 'red'), breaks=0, scale='none', Rowv = TRUE, 
          annColors=NA, Colv=NA)
 
-m1 = mCounts[,as.character(dfTopGenes.cent$VertexID)]
+m1 = log(mCounts[,as.character(dfTopGenes.cent$VertexID)]+0.5)
 m1 = apply(m1, 2, f_ivStabilizeData, fGroups)
 rownames(m1) = fGroups
 m1 = scale(m1)
@@ -880,7 +995,7 @@ for(i in 1:length(lev)){
 # plot the graph with location of the clique highlighted
 set.seed(1)
 ig = plot.graph.clique(oGr)
-ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F)
+ig = f_igCalculateVertexSizesAndColors(ig, t(mCounts), fGroups, bColor = F, iSize = 2)
 par(mar=c(1,1,1,1)+0.1)
 set.seed(1)
 plot(ig, vertex.label=NA, layout=layout_with_fr, vertex.frame.color=NA, edge.color='lightgrey')
@@ -894,7 +1009,7 @@ par(mar=c(1,1,1,1)+0.1)
 for(i in 1:length(lev)){
   ig = induced_subgraph(getFinalGraph(oGr), vids = unlist(getLargestCliques(oGr)))
   fG = factor(fGroups, levels= c(levels(fGroups)[1], lev[-i], lev[i]) )
-  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=5)
+  ig = f_igCalculateVertexSizesAndColors(ig, t(m), fG, bColor = T, iSize=2)
   n = V(ig)$name
   lab = f_dfGetGeneAnnotation(n)
   V(ig)$label = as.character(lab$SYMBOL)
@@ -908,24 +1023,24 @@ for(i in 1:length(lev)){
 # some sample plots
 # mean expression of groups in every cluster
 par(p.old)
-plot.mean.expressions(oGr, t(mCounts), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster', cex.axis=0.7)
+plot.mean.expressions(oGr, log(t(mCounts)+0.5), fGroups, legend.pos = 'bottomleft', main='Total Change in Each Cluster', cex.axis=0.7)
 # only significant clusters
 par(mar=c(7, 3, 2, 2)+0.1)
-plot.significant.expressions(oGr, t(mCounts), fGroups, main='Significant Clusters', lwd=1, bStabalize = T, cex.axis=0.7)#, p.cut=0.05 )
+plot.significant.expressions(oGr, log(t(mCounts)+0.5), fGroups, main='Significant Clusters', lwd=1, bStabalize = T, cex.axis=0.7)#, p.cut=0.05 )
 # principal component plots
-pr.out = plot.components(oGr, t(mCounts), fGroups, bStabalize = T)#, p.cut=0.05)
+pr.out = plot.components(oGr, log(t(mCounts)+0.5), fGroups, bStabalize = T)#, p.cut=0.05)
 par(mar=c(4,2,4,2))
 biplot(pr.out, cex=0.8, cex.axis=0.8, arrow.len = 0)
 # plot summary heatmaps
 # marginal expression level in each cluster
-plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = F)#, p.cut=0.05)
+plot.heatmap.significant.clusters(oGr, log(t(mCounts)+0.5), fGroups, bStabalize = F)#, p.cut=0.05)
 #plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T, p.cut=0.05)
 # plot variance of cluster
-m = getSignificantClusters(oGr, t(mCounts), fGroups)$clusters
+m = getSignificantClusters(oGr, log(t(mCounts)+0.5), fGroups)$clusters
 
 csClust = rownames(m)
 length(csClust)
-pdf('Temp/cluster_variance_duke.pdf')
+pdf('Temp/cluster_variance.pdf')
 par(mfrow=c(1,2))
 boxplot.cluster.variance(oGr, m, fGroups, log=T, iDrawCount = length(csClust), las=2)
 for (i in seq_along(csClust)){
@@ -947,45 +1062,61 @@ dfCluster.name
 dfCluster = getClusterMapping(oGr)
 colnames(dfCluster) = c('gene', 'cluster')
 rownames(dfCluster) = dfCluster$gene
+write.csv(dfCluster, file='Temp/dfCluster_members.xls')
 # how many genes in each cluster
 data.frame(sort(table(dfCluster$cluster)))
 #csClust = rownames(m$clusters)
 csClust = as.character(unique(dfCluster$cluster))
 
-mMarginal = getClusterMarginal(oGr, t(mCounts))
+mMarginal = getClusterMarginal(oGr, log(t(mCounts)+0.1))
 
+### create lattice plots for each cluster and group i.e. keloids and normals/controls
 library(lattice)
-dfData = data.frame(t(mMarginal))
+dfData = data.frame(scale(t(mMarginal)))
 #colnames(dfData) = gsub('X', '', colnames(dfData))
 dfData$groups = fGroups
 dfData$patient = factor(names(fGroups))
+# extract patient conditions from the fGroups
+fTime = factor(gsub('^Control:|Keloid:', '', as.character(fGroups)))
+fCondition = factor(gsub(':1|:2', '', as.character(fGroups)))
+dfData$time = fTime
+dfData$condition = fCondition
 
-xyplot(X195721  ~ groups | patient, data=dfData, type='o')
-
+str(dfData)
+## stack the dataframe expression values
 dfStack = stack(dfData)
-dfStack$groups = dfData$groups
+str(dfStack)
+dfStack$time = dfData$time
+dfStack$condition = dfData$condition
+dfStack$patient = dfData$patient
 
-xyplot(values ~ groups | ind, data=dfStack, type='o')
+xyplot(values ~ time | ind, data=dfStack, type=c('n','smooth'), groups=condition, auto.key=T)
 
 ## xyplots with population average
-mMarginal = getClusterMarginal(oGr, t(mCounts))
-mMarginal = apply(mMarginal, 1, function(x) tapply(x, fGroups, mean))
+mMarginal = getClusterMarginal(oGr, log(t(mCounts)+0.5))
+mMarginal = apply(mMarginal, 1, function(x) tapply((x), fGroups, mean))
 mMarginal = scale(mMarginal)
 dfData = data.frame(mMarginal)
 cn = colnames(mMarginal)
-# rownames(dfCluster.name) = dfCluster.name$V2
-# cn = c('Cytokine Signaling', 'citric acid cycle', 'adaptive immunity', 'mRNA processing', 'transcription', 'lipid metabolism', 
-#        'protein modification', 'gpcr signalling')
+str(dfData)
+rownames(dfCluster.name) = dfCluster.name$V2
+dfCluster.name[cn,]
+cn = c('Transmembrane transport', 'Amino A Met', 'Organelle biogenesis', 'Neutrophil degranulation/Rho GTPase',
+       'Epigenetics', 'ECM Degradation', 'Semaphorin interactions', 'Membrane Transport', 'ECM Proteoglycans',
+       'Class I MHC', 'GPCR binding', 'Muscle contraction', 'Sphingolipid metabolism', 'Keratinization',
+       'Wnt Signaling', 'Deubiquitination', 'Neuronal System', 'Cell communication', 'Stress response', 'Cytokine Signaling',
+       'FA metabolism', 'rRNA processing', 'Lipid metabolism', 'p53 regulation', 'Olf Rec Path')
 colnames(dfData) = cn
 #colnames(dfData) = gsub('X', '', colnames(dfData))
-dfData$groups = factor(rownames(dfData))#factor(gsub('Day (\\d+) AM', '\\1', rownames(dfData)))
-
-n = colnames(dfData)[1:20]
-
-sapply(n, function(x) {p =xyplot(dfData[,x] ~ groups , data=dfData, type='o', ylab=x)
-print(p)})
+dfData$groups = factor(rownames(dfData))
+dfData$time = factor(gsub('^Control:|Keloid:', '', as.character(dfData$groups)))
+dfData$condition = factor(gsub(':1|:2', '', as.character(dfData$groups)))
 
 dfStack = stack(dfData)
-dfStack$groups = dfData$groups
-
+dfStack$time = dfData$time
+dfStack$condition = dfData$condition
+pdf('Temp/module_summary.pdf')
+xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition, auto.key=T, par.strip.text=list(cex=0.4),
+       scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average')#, layout=c(4,7))
+dev.off(dev.cur())
 xyplot(values ~ groups | ind, data=dfStack, type='o')
