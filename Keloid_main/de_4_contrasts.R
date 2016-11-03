@@ -324,10 +324,10 @@ plotMeanFC(log(iMean), dfContrast4, 0.1, 'Keloid:2 vs Control:2')
 
 
 ### grouping of genes
-dfContrast1.sub = dfContrast1[dfContrast1$p.adj < 0.01,]
-dfContrast2.sub = dfContrast2[dfContrast2$p.adj < 0.1,]
-dfContrast3.sub = dfContrast3[dfContrast3$p.adj < 0.01,]
-dfContrast4.sub = dfContrast4[dfContrast4$p.adj < 0.1,]
+dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01,])
+dfContrast2.sub = na.omit(dfContrast2[dfContrast2$p.adj < 0.1,])
+dfContrast3.sub = na.omit(dfContrast3[dfContrast3$p.adj < 0.01,])
+dfContrast4.sub = na.omit(dfContrast4[dfContrast4$p.adj < 0.1,])
 
 cvCommonGenes = unique(c(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub)))
 mCommonGenes = matrix(NA, nrow=length(cvCommonGenes), ncol=4)
@@ -396,13 +396,14 @@ boxplot(mSenPvalues, las=2, ylab='p values distribution', main='bayesian sensiti
 plot(cm, type='l', las=2, xlab='Samples', ylab='P values')
 
 ## is there a correlation between size factor and this
+logit = function(p) log(p/(1-p))
 sf = oExp$LibrarySizeFactor
-plot(logit(sf), logit(cm), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
-fm = lm(logit(cm) ~ logit(sf))
+plot(sf, logit(cm), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
+fm = lm(logit(cm) ~ sf)
 summary(fm)
 iDrop = which.max(hatvalues(fm))
-summary(update(fm, logit(sf[-iDrop]) ~ logit(cm[-iDrop])))
-plot(logit(sf[-iDrop]), logit(cm[-iDrop]), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
+summary(update(fm, logit(cm[-iDrop]) ~ (sf[-iDrop])))
+plot((sf[-iDrop]), logit(cm[-iDrop]), main='Scatter plot for Sensitivity Analysis Average vs Library Size', xlab='Size Factor', ylab='Average P-Value for Sample')
 
 cor.test(sf[-iDrop], cm[-iDrop])
 
@@ -412,6 +413,12 @@ fRepeat = apply(mSenPvalues, 1, function(x) any(x < 0.05))
 table(fRepeat)
 cvRepeat = rownames(mCounts[fRepeat,])
 table(names(lGlm.sub) %in% cvRepeat)
+
+# how many samples have an outlier value per gene
+mRepeat = t(apply(mSenPvalues, 1, function(x) (x < 0.05)))
+i = rowSums(mRepeat)
+hist(i)
+table(i > 5)
 
 # fit glm to these genes
 ptm = proc.time()
@@ -592,12 +599,18 @@ plotMeanFC(log(iMean), dfContrast2, 0.1, 'Keloid:1 vs Control:1')
 plotMeanFC(log(iMean), dfContrast3, 0.01, 'Keloid:2 vs Keloid:1')
 plotMeanFC(log(iMean), dfContrast4, 0.1, 'Keloid:2 vs Control:2')
 
+# add dispersion parameter to ecah gene
+dfContrast1$Dispersion = iDispersion[rownames(dfContrast1)]
+dfContrast2$Dispersion = iDispersion[rownames(dfContrast2)]
+dfContrast3$Dispersion = iDispersion[rownames(dfContrast3)]
+dfContrast4$Dispersion = iDispersion[rownames(dfContrast4)]
+
 
 ### grouping of genes
-dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01,])
-dfContrast2.sub = na.omit(dfContrast2[dfContrast2$p.adj < 0.1,])
-dfContrast3.sub = na.omit(dfContrast3[dfContrast3$p.adj < 0.01,])
-dfContrast4.sub = na.omit(dfContrast4[dfContrast4$p.adj < 0.1,])
+dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01 & dfContrast1$Dispersion > 0.4,])
+dfContrast2.sub = na.omit(dfContrast2[dfContrast2$p.adj < 0.1 & dfContrast2$Dispersion > 0.4,])
+dfContrast3.sub = na.omit(dfContrast3[dfContrast3$p.adj < 0.01 & dfContrast3$Dispersion > 0.4,])
+dfContrast4.sub = na.omit(dfContrast4[dfContrast4$p.adj < 0.1 & dfContrast4$Dispersion > 0.4,])
 
 cvCommonGenes = unique(c(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub)))
 mCommonGenes = matrix(NA, nrow=length(cvCommonGenes), ncol=4)
@@ -610,8 +623,6 @@ colnames(mCommonGenes) = gsub(' ', '', rownames(mContrasts))
 
 
 ############
-
-
 
 #### analysis by grouping genes
 # create groups in the data based on 4^2-1 combinations
