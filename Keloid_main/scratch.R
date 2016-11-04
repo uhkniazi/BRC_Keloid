@@ -369,7 +369,7 @@ glmer.nb(mDat[79,] ~ 0 + cond.time + (1 | patient), control=glmerControl(optCtrl
 install.packages("R2admb")
 install.packages("glmmADMB",repos="http://glmmadmb.r-forge.r-project.org/repos")
 sqrt(sum(c(as.numeric(resid(fm01)), as.numeric(fm01$U[[1]]))^2)/n)
-
+dispersion_glmer {blmeco}
 
 f_plotVolcano = function(dfGenes, main, p.adj.cut = 0.1, fc.lim = c(-3, 3)){
   p.val = -1 * log10(dfGenes$p.value)

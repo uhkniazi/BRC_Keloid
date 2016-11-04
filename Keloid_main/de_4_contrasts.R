@@ -610,10 +610,10 @@ dfContrast3$Dispersion = iDispersion[rownames(dfContrast3)]
 dfContrast4$Dispersion = iDispersion[rownames(dfContrast4)]
 
 # save the gene lists
-write.csv(dfContrast1, file='Results/Control:2vsControl:1.xls')
-write.csv(dfContrast2, file='Results/Keloid:1vsControl:1.xls')
-write.csv(dfContrast3, file='Results/Keloid:2vsKeloid:1.xls')
-write.csv(dfContrast4, file='Results/Keloid:2vsControl:2.xls')
+write.csv(na.omit(dfContrast1), file='Results/Control:2vsControl:1.xls')
+write.csv(na.omit(dfContrast2), file='Results/Keloid:1vsControl:1.xls')
+write.csv(na.omit(dfContrast3), file='Results/Keloid:2vsKeloid:1.xls')
+write.csv(na.omit(dfContrast4), file='Results/Keloid:2vsControl:2.xls')
 
 ### grouping of genes
 dfContrast1.sub = na.omit(dfContrast1[dfContrast1$p.adj < 0.01 & dfContrast1$Dispersion > 0.4,])
@@ -702,8 +702,15 @@ str(df.rn)
 write.csv(df.rn, file=paste('Temp/', 'unique.to.k2vsk1.VS.c2vsc1', '.xls', sep=''))
 
 # genes present in other 2 remaining contrasts
-write.csv(dfContrast2.sub, file='Temp/K1vsC1.xls')
-write.csv(dfContrast4.sub, file='Temp/K2vsC2.xls')
+df.rn = select(org.Hs.eg.db, keys = rownames(dfContrast2.sub), columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+dim(df.rn)
+str(df.rn)
+write.csv(df.rn, file='Temp/K1vsC1.xls')
+
+df.rn = select(org.Hs.eg.db, keys = rownames(dfContrast4.sub), columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+dim(df.rn)
+str(df.rn)
+write.csv(df.rn, file='Temp/K2vsC2.xls')
 
 ## insert this gene list at innate db to see pathways overrepresented
 ## import innate db result
@@ -1037,7 +1044,7 @@ plot.heatmap.significant.clusters(oGr, log(t(mCounts)+0.5), fGroups, bStabalize 
 #plot.heatmap.significant.clusters(oGr, t(mCounts), fGroups, bStabalize = T, p.cut=0.05)
 # plot variance of cluster
 m = getSignificantClusters(oGr, log(t(mCounts)+0.5), fGroups)$clusters
-
+m = getClusterMarginal(oGr, log(t(mCounts)+0.5))
 csClust = rownames(m)
 length(csClust)
 pdf('Temp/cluster_variance.pdf')
@@ -1068,7 +1075,7 @@ data.frame(sort(table(dfCluster$cluster)))
 #csClust = rownames(m$clusters)
 csClust = as.character(unique(dfCluster$cluster))
 
-mMarginal = getClusterMarginal(oGr, log(t(mCounts)+0.1))
+mMarginal = getClusterMarginal(oGr, log(t(mCounts)+0.5))
 
 ### create lattice plots for each cluster and group i.e. keloids and normals/controls
 library(lattice)
@@ -1101,12 +1108,15 @@ cn = colnames(mMarginal)
 str(dfData)
 rownames(dfCluster.name) = dfCluster.name$V2
 dfCluster.name[cn,]
-cn = c('Transmembrane transport', 'Amino A Met', 'Organelle biogenesis', 'Neutrophil degranulation/Rho GTPase',
+cn = c('Transmembrane transport', 'Amino A Met', 'Organelle biogenesis', 'Neutrophil degran/GTPase',
        'Epigenetics', 'ECM Degradation', 'Semaphorin interactions', 'Membrane Transport', 'ECM Proteoglycans',
        'Class I MHC', 'GPCR binding', 'Muscle contraction', 'Sphingolipid metabolism', 'Keratinization',
        'Wnt Signaling', 'Deubiquitination', 'Neuronal System', 'Cell communication', 'Stress response', 'Cytokine Signaling',
        'FA metabolism', 'rRNA processing', 'Lipid metabolism', 'p53 regulation', 'Olf Rec Path')
 colnames(dfData) = cn
+temp = dfCluster.name[colnames(mMarginal),]
+temp$cn = cn
+temp
 #colnames(dfData) = gsub('X', '', colnames(dfData))
 dfData$groups = factor(rownames(dfData))
 dfData$time = factor(gsub('^Control:|Keloid:', '', as.character(dfData$groups)))
@@ -1116,7 +1126,7 @@ dfStack = stack(dfData)
 dfStack$time = dfData$time
 dfStack$condition = dfData$condition
 pdf('Temp/module_summary.pdf')
-xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition, auto.key=T, par.strip.text=list(cex=0.4),
+xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition, auto.key=T, par.strip.text=list(cex=0.6),
        scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average')#, layout=c(4,7))
 dev.off(dev.cur())
 xyplot(values ~ groups | ind, data=dfStack, type='o')
