@@ -83,3 +83,39 @@ pv.out.list <- sapply(substr(rownames(dfBar)[1], 1, 8), function(pid) pathview(
   gene.data = iContFc, pathway.id = pid,
   species = "hsa", out.suffix='Contrast 1 Down', kegg.dir = 'Results/Kegg_figures/'))
 
+
+### protein enrichment analysis using interaction database 
+# ## some enrichment using string db package
+library(STRINGdb)
+# find database id for human
+temp = get_STRING_species(version = '10')
+temp[grep('homo', temp$official_name, ignore.case = T, perl=TRUE),]
+
+dbString = STRINGdb$new(version='10', species=9606, input_directory='')
+
+## load genes to check
+
+## save the genes in the overlaps of interest
+rn = which(mCommonGenes.grp[,'cp'] == 1)
+rn = names(rn)
+length(rn)
+
+df.rn = select(org.Hs.eg.db, keys = rn, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+
+string.mapped = dbString$map(df.rn, 'ENTREZID', removeUnmappedRows = T)
+
+par(p.old)
+hits = string.mapped$STRING_id[1:200]
+#dbString$plot_network(hits)
+pdf('Temp/string.pdf')
+dbString$plot_network(hits)
+dev.off(dev.cur())
+
+# plot enrichment
+dbString$plot_ppi_enrichment(string.mapped$STRING_id, quiet = T)
+
+# category for which to compute the enrichment (i.e. "Process", "Component",
+# "Function", "KEGG", "Pfam", "InterPro"). The default category is "Process".
+enrichmentProcess = dbString$get_enrichment(string.mapped$STRING_id, category = 'Process', iea=F)
+
+
