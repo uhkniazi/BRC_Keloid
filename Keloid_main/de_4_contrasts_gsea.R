@@ -93,29 +93,69 @@ temp[grep('homo', temp$official_name, ignore.case = T, perl=TRUE),]
 
 dbString = STRINGdb$new(version='10', species=9606, input_directory='')
 
-## load genes to check
+df.rn = dfContrast4
+str(df.rn)
+df.rn$ENTREZ.ID = as.character(df.rn$ENTREZ.ID)
+rownames(df.rn) = df.rn$ENTREZ.ID
+head(df.rn)
 
-## save the genes in the overlaps of interest
-rn = which(mCommonGenes.grp[,'cp'] == 1)
-rn = names(rn)
-length(rn)
+string.mapped = dbString$map(df.rn, 'ENTREZ.ID', removeUnmappedRows = T)
 
-df.rn = select(org.Hs.eg.db, keys = rn, columns = c('SYMBOL', 'GENENAME'), keytype = 'ENTREZID')
+string.mapped = string.mapped[order(string.mapped$p.value),]
+head(string.mapped)
 
-string.mapped = dbString$map(df.rn, 'ENTREZID', removeUnmappedRows = T)
-
+# plot enrichment
+dbString$plot_ppi_enrichment(string.mapped$STRING_id, quiet = T, title = 'Contrast 4 All')
+dbString$plot_ppi_enrichment(string.mapped$STRING_id[1:700], quiet = T, title = 'Contrast 4')
+#ig = dbString$get_graph()
+#enrichment = ppi_enrichment_full(string.mapped$STRING_id, ig)
+#enrichment = ppi_enrichment(string.mapped$STRING_id, ig)
+#enrichment = dbString$get_ppi_enrichment(string.mapped$STRING_id[1:1000])
 par(p.old)
-hits = string.mapped$STRING_id[1:200]
+hits = string.mapped$STRING_id[250:430]
 #dbString$plot_network(hits)
-pdf('Temp/string.pdf')
+pdf('Temp/string_contrast4_250-430.pdf')
 dbString$plot_network(hits)
 dev.off(dev.cur())
 
-# plot enrichment
-dbString$plot_ppi_enrichment(string.mapped$STRING_id, quiet = T)
 
 # category for which to compute the enrichment (i.e. "Process", "Component",
 # "Function", "KEGG", "Pfam", "InterPro"). The default category is "Process".
-enrichmentProcess = dbString$get_enrichment(string.mapped$STRING_id, category = 'Process', iea=F)
+enrichmentProcess = dbString$get_enrichment(string.mapped$STRING_id[1:500], category = 'Process', iea=F)
+enrichmentKEGG = dbString$get_enrichment(string.mapped$STRING_id[1:500], category = 'KEGG', iea=F)
+
+## make bar plots and save data
+write.csv(enrichmentProcess, file='Results/Keloid:2vsControl:2_protein_pathways_GO_BP.xls')
+write.csv(enrichmentKEGG, file='Results/Keloid:2vsControl:2_protein_pathways_KEGG.xls')
+
+dfBar = enrichmentProcess[order(enrichmentProcess$pvalue), ]
+dfBar = enrichmentKEGG[order(enrichmentKEGG$pvalue), ]
+
+i = -1*log10(dfBar$pvalue[1:7])
+names(i) = dfBar$term_description[1:7]
+
+plot.bar(i, title='Contrast 4 - Proteins KEGG', ylab='-log10 PValue')
+
+
+# #################### compare 2 contrasts
+# df.rn = dfContrast4
+# str(df.rn)
+# df.rn$ENTREZ.ID = as.character(df.rn$ENTREZ.ID)
+# rownames(df.rn) = df.rn$ENTREZ.ID
+# head(df.rn)
+# 
+# string.mapped = dbString$map(df.rn, 'ENTREZ.ID', removeUnmappedRows = T)
+# 
+# string.mapped = string.mapped[order(string.mapped$p.value),]
+# 
+# string.mapped.1 = string.mapped
+# string.mapped.2 = string.mapped
+# 
+# hits.contrast1 = string.mapped.1$STRING_id[1:600]
+# hits.contrast3 = string.mapped.2$STRING_id[1:600]
+# 
+# eh = dbString$enrichment_heatmap(list(hits.contrast1, hits.contrast3), vectorNames = list('Contrast1', 'Contrast3'), output_file = 'Temp/hm.pdf',
+#                                  enrichmentType = 'Process',
+#                                 title = 'Contrats 1 and Contrast 2 GO BP')
 
 
