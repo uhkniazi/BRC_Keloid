@@ -33,6 +33,7 @@ db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', hos
 q = paste0('select MetaFile.* from MetaFile
 where (MetaFile.idData = 2) AND (MetaFile.comment like "%count%")')
 dfSample = dbGetQuery(db, q)
+dfSample = dfSample[dfSample$id == 25,]
 q = paste0('select Sample.id as sid, Sample.group1 as timepoints, Sample.group2 as phenotype, Sample.title, File.* from Sample, File
 where (Sample.idData = 2) AND (Sample.group1 like "%Timepoint%") AND (File.idSample = Sample.id AND File.type like "%duplicates removed%")')
 dfSample.names = dbGetQuery(db, q)
@@ -46,6 +47,12 @@ load(n)
 ## make count matrix
 names(lCounts)
 mCounts = do.call(cbind, lCounts)
+
+## get the ercc spike in ids
+i = grep('^ERCC', rownames(mCounts))
+mCounts.spikein = mCounts[i,]
+
+## stop here as most of matrix is zero 
 
 # reorder the count matrix columns according to the order in samples table
 i = match(dfSample.names$name, colnames(mCounts))
