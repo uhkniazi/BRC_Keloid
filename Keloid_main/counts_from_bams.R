@@ -11,9 +11,21 @@ setwd('Keloid_main/')
 ## load the transcript db objects
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(GenomicAlignments)
+library(rtracklayer)
 
 # get the exons into GRangesList object
 oGRLgenes = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, by = 'gene')
+
+# load the ERCC gtf with spikein information
+oGRercc = import('~/Data/MetaData/ERCC92.gtf')
+
+# reformat metadata column
+f = oGRercc$gene_id
+df = DataFrame(exon_id=oGRercc$transcript_id, exon_name=NA)
+mcols(oGRercc) = df
+oGRLercc = split(oGRercc, f)
+
+oGRLgenes = append(oGRLgenes, oGRLercc)
 
 ## create the bamfile list from database
 ## connect to mysql database to get sample information
@@ -57,7 +69,7 @@ lCounts = lapply(lFiles, function(bfl){
 
 ## save the summarized experiment object
 setwd(gcswd)
-n = make.names(paste('lCounts object for keloids q10 rdup rds'))
+n = make.names(paste('lCounts object for keloids q10 rdup with spikein rds'))
 n2 = paste0('~/Data/MetaData/', n)
 save(lCounts, file=n2)
 
@@ -66,7 +78,7 @@ db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', hos
 dbListTables(db)
 dbListFields(db, 'MetaFile')
 df = data.frame(idData=2, name=n, type='rds', location='~/Data/MetaData/', 
-                comment='list of Count matrix object for keloids S014 S021 and S032 sequencing runs with quality 10 duplicates removed')
+                comment='list of Count matrix object for keloids S014 S021 and S032 sequencing runs with quality 10 with spikein and duplicates removed')
 dbWriteTable(db, name = 'MetaFile', value=df, append=T, row.names=F)
 dbDisconnect(db)
 
