@@ -34,6 +34,8 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
   * DE analysis for the keloids datasets with some sensitivity analysis added on top.
 13. de_4_contrasts_gsea.R & de_4_contrasts_overrepresentation.R  
   * gene set enrichment analysis for the contrasts & over representation analysis for various overlaps of contrasts.  
+14. gsea_summary_tables.R
+  * combined the gsea results for up and downstream analyses for each contrast and assigned groups.  
   
   
 
