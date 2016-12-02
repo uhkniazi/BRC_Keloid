@@ -30,6 +30,11 @@ Identifying what goes wrong during wound healing to cause excessive scars known 
   * uses all the bam files to and Txdb object to count over laps over the genome and save the results.  
 11. clustering_rna_seq_counts.R  
   * loads the sample information (covariates etc) and counts matrix from the database. Produces PCA plots for the count matrix, coloured by covariate of choice, using various transformations of the data e.g. scaling, log, rlog, normalised. Plots the average gene expression density distribution. Merges the technical replicates, normalises and repeats the plots.  
+12. de_4_contrasts.R  
+  * DE analysis for the keloids datasets with some sensitivity analysis added on top.
+13. de_4_contrasts_gsea.R & de_4_contrasts_overrepresentation.R  
+  * gene set enrichment analysis for the contrasts & over representation analysis for various overlaps of contrasts.  
+  
   
 
   
