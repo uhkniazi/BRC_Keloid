@@ -152,3 +152,41 @@ venn.diagram(lVenn, filename = 'Results/venn_all_downregulated_msigdb.tif')
 write.csv(dfMerged.up, file='Results/gsea_msigdb_upregulated_merged.xls')
 write.csv(dfMerged.down, file='Results/gsea_msigdb_downregulated_merged.xls')
 
+## merge together into one dataframe
+dfMerged.up.sub = dfMerged.up[dfMerged.up$groups != 'NONE',]
+dfMerged.down.sub = dfMerged.down[dfMerged.down$groups != 'NONE',]
+
+table(rownames(dfMerged.up.sub) %in% rownames(dfMerged.down.sub))
+
+dfMerged.up.sub$Direction = 'UP'
+dfMerged.down.sub$Direction = 'DOWN'
+
+dfMerged = rbind(dfMerged.up.sub, dfMerged.down.sub)
+dfMerged = droplevels.data.frame(dfMerged)
+
+write.csv(dfMerged, file='Results/gsea_msigdb_significant_merged.xls')
+
+### heatmaps
+df = dfMerged
+mMat = as.matrix(df[,c(1:4)])
+head(mMat)
+mMat = -10*log10(mMat+1e-16)
+g1 = df[,'groups']
+g1 = factor(as.character(g1))
+levels(g1)
+g2 = df[,'Direction']
+g2 = factor(as.character(g2))
+levels(g2)
+
+ann = data.frame(Dir=g2, Group=g1 )
+mMat[mMat < 15] = 0 
+mMat[mMat > 130] = 130
+
+library(NMF)
+aheatmap(mMat, annRow = ann, scale = 'none', Rowv = order(g2:g1), Colv=NA, labCol=c('C2vC1', 'K1vC1', 'K2vC2', 'K2vK1'), cexRow=5,
+         col=c('white', brewer.pal(9, 'YlOrRd')))
+
+pdf('Results/gsea_msigdb_significant_merged.pdf')
+aheatmap(mMat, annRow = ann, scale = 'none', Rowv = order(g2:g1), Colv=NA, labCol=c('C2vC1', 'K1vC1', 'K2vC2', 'K2vK1'), cexRow=5,
+         col=c('white', brewer.pal(9, 'YlOrRd')))
+dev.off(dev.cur())
