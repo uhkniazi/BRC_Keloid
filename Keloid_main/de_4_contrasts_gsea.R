@@ -53,8 +53,8 @@ rownames(dfLess[i,])
 # write.csv(dfGreater[,c('p.val', 'q.val', 'set.size')], file='Results/Keloid:2vsControl:2_upregulated_pathways_mSigDb_c2_curated.xls')
 # write.csv(dfLess[,c('p.val', 'q.val', 'set.size')], file='Results/Keloid:2vsControl:2_downregulated_pathways_mSigDb_c2_curated.xls')
 
-write.csv(dfGreater[,c('p.val', 'q.val', 'set.size')], file='Results/Keloid:2vsControl:2_upregulated_pathways_GO_BP.xls')
-write.csv(dfLess[,c('p.val', 'q.val', 'set.size')], file='Results/Keloid:2vsControl:2_downregulated_pathways_GO_BP.xls')
+write.csv(dfGreater[,c('p.val', 'q.val', 'set.size')], file='Results/c4_upregulated_pathways_msigdb_c5.xls')
+write.csv(dfLess[,c('p.val', 'q.val', 'set.size')], file='Results/c4_downregulated_pathways_msigdb_c5.xls')
 
 
 
