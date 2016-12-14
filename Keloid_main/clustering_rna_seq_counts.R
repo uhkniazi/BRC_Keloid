@@ -48,17 +48,19 @@ load(n)
 names(lCounts)
 mCounts = do.call(cbind, lCounts)
 
-## get the ercc spike in ids
-i = grep('^ERCC', rownames(mCounts))
-mCounts.spikein = mCounts[i,]
-
-## stop here as most of matrix is zero 
+# ## get the ercc spike in ids
+# i = grep('^ERCC', rownames(mCounts))
+# mCounts.spikein = mCounts[i,]
 
 # reorder the count matrix columns according to the order in samples table
 i = match(dfSample.names$name, colnames(mCounts))
 mCounts = mCounts[,i]
 # sanity check
 identical(dfSample.names$name, colnames(mCounts))
+
+## get the ercc spike in ids
+i = grep('^ERCC', rownames(mCounts))
+mCounts.spikein = mCounts[i,]
 
 #### scale each variable vector i.e. gene
 ## add a normal jitter to each cell to remove zeros
@@ -101,30 +103,16 @@ mCounts = mCounts[,i]
 # sanity check
 identical(dfSample.names$name, colnames(mCounts))
 
-dfDesign = data.frame(condition=factor(dfSample.names$timepoints), row.names = colnames(mCounts))
+## get the ercc spike in ids
+i = grep('^ERCC', rownames(mCounts))
+mCounts.spikein = mCounts[i,]
 
-oDseq = DESeqDataSetFromMatrix(mCounts, dfDesign, design = ~ condition)
-mCounts.rlog = assays(rlog(oDseq))
-oDseq = DESeq(oDseq)
-mCounts.norm = counts(oDseq, normalized=T)
-mCounts.rlog = mCounts.rlog@listData[[1]]
+sf = estimateSizeFactorsForMatrix(mCounts)
+mCounts.norm = sweep(mCounts, 2, sf, '/')
 
-# adding some noise to remove zeros
-n = dim(mCounts)[1] * dim(mCounts)[2]
-mCounts.s = t(mCounts.rlog + rnorm(n))
-
-# set scaling to TRUE to scale columns 
-pr.out = prcomp(mCounts.s, scale = T)
-
-# set the factor for colours
-fSamples = factor(dfSample.names$group1)
-col.p = rainbow(length(unique(fSamples)))
-col = col.p[as.numeric(fSamples)]
-
-plot(pr.out$x[,1:2], col=col, pch=19, xlab='Z1', ylab='Z2',
-     main='PCA comp 1 and 2, log transformed')
-text(pr.out$x[,1:2], labels = dfSample.names$title, pos = 1, cex=0.6)
-legend('topright', legend = unique(fSamples), fill=col.p[as.numeric(unique(fSamples))], cex=0.8)
+# quick and dirty check
+temp = colSums(mCounts.spikein)
+plot(sf, temp)
 
 ## for normalized data
 # adding some noise to remove zeros
