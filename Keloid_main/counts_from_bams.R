@@ -18,7 +18,7 @@ oGRLgenes = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, by = 'gene')
 
 # load the ERCC gtf with spikein information
 oGRercc = import('~/Data/MetaData/ERCC92.gtf')
-
+strand(oGRercc) = '*'
 # reformat metadata column
 f = oGRercc$gene_id
 df = DataFrame(exon_id=oGRercc$transcript_id, exon_name=NA)
