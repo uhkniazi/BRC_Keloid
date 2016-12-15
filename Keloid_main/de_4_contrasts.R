@@ -22,6 +22,7 @@ db = dbConnect(MySQL(), user='rstudio', password='12345', dbname='Projects', hos
 q = paste0('select MetaFile.* from MetaFile
 where (MetaFile.idData = 2) AND (MetaFile.comment like "%count%")')
 dfCountMatrix = dbGetQuery(db, q)
+dfCountMatrix = dfCountMatrix[dfCountMatrix$id == '25',]
 # load the sample meta data
 q = paste0('select Sample.id as sid, Sample.group1 as timepoints, Sample.group2 as phenotype, Sample.title, File.* from Sample, File
 where (Sample.idData = 2) AND (Sample.group1 like "%Timepoint%") AND (File.idSample = Sample.id AND File.type like "%duplicates removed%")')
@@ -31,6 +32,7 @@ dbDisconnect(db)
 
 ################# merge replicate samples before normalisation 
 ## normalize these datasets with DESeq2 
+library(RUVSeq)
 library(DESeq2)
 n = paste0(dfCountMatrix$location, dfCountMatrix$name)
 load(n)
@@ -112,9 +114,24 @@ i = which(oExp$title == 'N3-2nd')
 oExp = oExp[,-i]
 dim(oExp)
 
-# normalise the count matrix using deseq method
+# normalise the count matrix using ruv-seq method and dseq
 sf = estimateSizeFactorsForMatrix(exprs(oExp))
-exprs(oExp) = sweep(exprs(oExp), 2, sf, '/')
+mCounts.dseq = sweep(exprs(oExp), 2, sf, '/')
+# ruv-seq method
+i = grep('^ERCC', rownames(exprs(oExp)))
+cvERCC = rownames(exprs(oExp))[i]
+
+oRUV = RUVg(exprs(oExp), cvERCC, k=2)
+exprs(oExp) = oRUV$normalizedCounts
+# compare the 2
+ivDSeq = colSums(mCounts.dseq)
+ivRUV = colSums(exprs(oExp))
+plot(ivDSeq, ivRUV)
+plot(sf, ivRUV)
+plot(sf, ivDSeq)
+barplot(ivDSeq)
+barplot(ivRUV)
+
 oExp$LibrarySizeFactor = sf
 # drop any unused levels
 pData(oExp) = droplevels.data.frame(pData(oExp))
