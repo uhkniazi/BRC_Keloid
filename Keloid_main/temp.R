@@ -28,3 +28,52 @@ legend('topleft', legend = colnames(mCuts), fill=1:4)
 # 
 # df = dfContrast2
 # curve(getFalsePositives, 0.01, 1,n = 100, type = 'l', xlab = 'P.adjust cutoff', ylab='False positives', main='Contrast 2')
+
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+oGRLgenes = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, by = 'gene')
+i = i[names(i) %in% names(oGRLgenes)]
+oGRLgenes = oGRLgenes[names(i)]
+f = sapply(width(oGRLgenes), sum) > 3000
+oGRLgenes = oGRLgenes[f]
+length(oGRLgenes)
+
+# ### take a sample of exons/transcripts
+# oGRLgenes = exonsBy(TxDb.Hsapiens.UCSC.hg38.knownGene, by = 'tx')
+# ## select transcripts with length close to  mean
+oGRLgenes = oGRLgenes[sample(1:length(oGRLgenes), 3000, replace = F)]
+length(oGRLgenes)
+oGRLexons = oGRLgenes
+# temp = unlist(oGRLgenes)
+# temp = temp[width(temp) > 120]
+# temp = temp[sample(1:length(temp), size = 10000, replace = F)]
+# oGRLexons = split(temp, 1:length(temp))
+
+getTranscriptCoverage = function(bam){
+  ###
+  f_bin_vector = function(start, end, bins){
+    s = floor(seq(start, end, length.out=bins+1))
+    e = s-1
+    e[length(e)] = s[length(s)]
+    length(s) = length(s)-1
+    e = e[2:length(e)]
+    return(data.frame(start=s, end=e))
+  }# f_bin_vector
+  ###
+  which = unlist(range(oGRLgenes))
+  which = resize(which, width = width(which)+100, fix='center')
+  param = ScanBamParam(flag=scanBamFlag(), what = scanBamWhat(), which=which)
+  # read the GAlignments object
+  oGA = readGAlignments(bam, param=param)
+  # get the coverage
+  cov = coverageByTranscript(oGA, oGRLexons, ignore.strand=FALSE)
+  mCoverage = sapply(cov, function(temp) {
+    # create a binned vector to create views on this coverage
+    bins = f_bin_vector(1, sum(width(temp)), bins=2000)
+    # create views on these bins
+    ivCoverage = viewMeans(Views(temp, bins$start, bins$end))
+    ivCoverage = ivCoverage / max(ivCoverage)})
+  mCoverage = t(mCoverage)
+  mCoverage = colMeans(mCoverage, na.rm = T)
+  mCoverage = mCoverage/max(mCoverage)
+  return(mCoverage)
+}
