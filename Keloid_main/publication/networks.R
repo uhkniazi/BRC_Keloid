@@ -191,7 +191,9 @@ dfContrast2.sub = na.omit(dfContrast2[dfContrast2$p.adj < 0.05 & dfContrast2$Dis
 dfContrast3.sub = na.omit(dfContrast3[dfContrast3$p.adj < 0.05 & dfContrast3$Dispersion > 0.4,])
 dfContrast4.sub = na.omit(dfContrast4[dfContrast4$p.adj < 0.05 & dfContrast4$Dispersion > 0.4,])
 
-cvCommonGenes = unique(c(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub)))
+#cvCommonGenes = unique(c(rownames(dfContrast1.sub), rownames(dfContrast2.sub), rownames(dfContrast3.sub), rownames(dfContrast4.sub)))
+# use only genes from the contrast of interest
+cvCommonGenes = rownames(dfContrast3.sub)
 
 ## download the cgraph library
 library(downloader)
@@ -227,12 +229,15 @@ dfReactome.sub$ENTREZID = dfGenes$ENTREZID[i]
 dfGraph = dfReactome.sub[,c('ENTREZID', 'V2')]
 dfGraph = na.omit(dfGraph)
 head(dfGraph)
-# get expression data
-mCounts = exprs(oExp)[unique(dfGenes$ENTREZID),]
+# get expression data after subsetting for contrast of interest
+i = which((oExp)$fCondition.t %in% c('Keloid:1', 'Keloid:2'))
+oExp.sub = oExp[,i]
+pData(oExp.sub) = droplevels.data.frame(pData(oExp.sub))
+mCounts = exprs(oExp.sub)[unique(dfGenes$ENTREZID),]
 dim(mCounts)
 
-fGroups = oExp$fCondition.t
-names(fGroups) = oExp$fTitle
+fGroups = oExp.sub$fCondition.t
+names(fGroups) = oExp.sub$fTitle
 colnames(mCounts) = fGroups
 # reorder on grouping factor
 mCounts = mCounts[,order(fGroups)]
@@ -502,33 +507,35 @@ dfCluster.name[cn,]
 ## look at the saved mapping of cluster to gene list table 
 
 
-cn = c('Metabolism of RNA',
-       'Transport small mol',
-       'Membrane Vesi Transport',
-       'Organelle biogenesis',
+cn = c('Generic Transcription',
        'Metabolism of lipids',
-       'Neutrophil degranulation',
+       'Transport of small mol',
+       'Vesicle-mediated transport',
+       'Metabolism of amino acids',
+       'Innate Immune System',
+       'Pre-mRNA Processing',
        'Biological oxidations',
-       'Ex-cellular mat org',
-       'Signalling by WNT',
+       'Ext-cell matrix organization',
+       'Cell-Cell communication',
        'Hemostasis',
-       'Axon Guidance',
-       'GPCR signalling',
-       'Receptor Tyr Kin Sig',
-       'Keratinization',
+       'Axon guidance',
+       'Metabolism of RNA',
        'Adaptive Immune System',
-       'Cell resp external stim',
-       'Chromatin modification',
-       'Deubiquitination',
+       'Phospholipid metabolism',
+       'Signaling by GPCR',
+       'Signal Receptor Tyr Kinase',
        'Neuronal System',
-       'Phospholipid metab',
-       'Cell-Cell Communication',
+       'rRNA processing',
+       'Keratinization',
+       'White adipocyte diff',
        'Carbohydrate metabolism',
-       'Cytokine signalling',
-       'GPI-anchored prot synt',
-       'Nucleotide metabolism',
-       'Translation',
-       'Vitamins, cofactors metab'
+       'Response external stimuli',
+       'Deubiquitination',
+       'Vitamins, cofactors metab',
+       'Cytokine Signaling',
+       'GPI-anchored proteins',
+       'Cell cycle',
+       'Translation'
        )
 colnames(dfData) = cn
 
@@ -545,8 +552,8 @@ dfStack = stack(dfData)
 dfStack$time = dfData$time
 dfStack$condition = dfData$condition
 
-xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition, auto.key = list(columns=2), par.strip.text=list(cex=0.7),
-       scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average')#, layout=c(4,7))
+xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition,  par.strip.text=list(cex=0.7),
+       scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average')#auto.key = list(columns=2), layout=c(4,7))
 
 ## add cluster names and gene names to the table
 i = match(dfCluster$cluster, dfCluster.name$V2)
