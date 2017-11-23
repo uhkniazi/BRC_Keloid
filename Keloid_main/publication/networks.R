@@ -229,15 +229,11 @@ dfReactome.sub$ENTREZID = dfGenes$ENTREZID[i]
 dfGraph = dfReactome.sub[,c('ENTREZID', 'V2')]
 dfGraph = na.omit(dfGraph)
 head(dfGraph)
-# get expression data after subsetting for contrast of interest
-i = which((oExp)$fCondition.t %in% c('Keloid:1', 'Keloid:2'))
-oExp.sub = oExp[,i]
-pData(oExp.sub) = droplevels.data.frame(pData(oExp.sub))
-mCounts = exprs(oExp.sub)[unique(dfGenes$ENTREZID),]
+mCounts = exprs(oExp)[unique(dfGenes$ENTREZID),]
 dim(mCounts)
 
-fGroups = oExp.sub$fCondition.t
-names(fGroups) = oExp.sub$fTitle
+fGroups = oExp$fCondition.t
+names(fGroups) = oExp$fTitle
 colnames(mCounts) = fGroups
 # reorder on grouping factor
 mCounts = mCounts[,order(fGroups)]
@@ -508,34 +504,32 @@ dfCluster.name[cn,]
 
 
 cn = c('Generic Transcription',
-       'Metabolism of lipids',
        'Transport of small mol',
        'Vesicle-mediated transport',
-       'Metabolism of amino acids',
+       'Organelle biogenesis',
        'Innate Immune System',
-       'Pre-mRNA Processing',
        'Biological oxidations',
        'Ext-cell matrix organization',
-       'Cell-Cell communication',
+       'Lipid Metabolism',
        'Hemostasis',
        'Axon guidance',
        'Metabolism of RNA',
-       'Adaptive Immune System',
-       'Phospholipid metabolism',
        'Signaling by GPCR',
-       'Signal Receptor Tyr Kinase',
-       'Neuronal System',
-       'rRNA processing',
+       'Cytokine Signalling',
        'Keratinization',
-       'White adipocyte diff',
-       'Carbohydrate metabolism',
+       'Adaptive Immune System',
        'Response external stimuli',
+       'Chromatin Modification',
+       'Muscle Contraction',
        'Deubiquitination',
-       'Vitamins, cofactors metab',
-       'Cytokine Signaling',
+       'Neuronal System',
+       'Cell-Cell Communication',
+       'Carbohydrate metabolism',
        'GPI-anchored proteins',
-       'Cell cycle',
-       'Translation'
+       'Nucleotide Metabolism',
+       'Translation',
+       'Vitamin metabolism',
+       'Phospholipid metabolism'
        )
 colnames(dfData) = cn
 
@@ -553,7 +547,7 @@ dfStack$time = dfData$time
 dfStack$condition = dfData$condition
 
 xyplot(values ~ time | ind, data=dfStack, type=c('b'), groups=condition,  par.strip.text=list(cex=0.7),
-       scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average')#auto.key = list(columns=2), layout=c(4,7))
+       scales=list(cex=0.6), xlab='Time', ylab='Scaled Module Average', auto.key = list(columns=2))#, layout=c(4,7))
 
 ## add cluster names and gene names to the table
 i = match(dfCluster$cluster, dfCluster.name$V2)
